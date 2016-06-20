@@ -44,6 +44,9 @@ checkpoint("2016-04-01", verbose=TRUE)
 library(futile.logger)
 library(dplyr)
 library(lazyeval)
+library(caret)
+library(e1071) # caret dependency
+library(klaR) # Naive Bayes
 
 LOGGER_LEVEL = futile.logger::INFO
 flog.threshold(LOGGER_LEVEL)
@@ -55,12 +58,12 @@ flog.info("Step 1: divide data")
 datasets.names = c("bank-marketing", "magic", "wine-quality")
 datasets.class.size = 300
 
-for (name in datasets.names)
+for (dataset.name in datasets.names)
 {
-    flog.info(paste("Dataset:", name))
+    flog.info(paste("Dataset:", dataset.name))
     
     set.seed(SEED)
-    dataset = readRDS(file.path("datasets", paste0(name, ".rds")))
+    dataset = readRDS(file.path("datasets", paste0(dataset.name, ".rds")))
     
     dataset.levels = levels(dataset[, ncol(dataset)])
     dataset.classname = tail(colnames(dataset), 1)
@@ -83,9 +86,9 @@ for (name in datasets.names)
         dataset.sample[(datasets.class.size+1):nrow(dataset.sample), ]
     
     saveRDS(dataset.full.sample, 
-            file.path("datasets", paste0(name, "-full-sample.rds")))
+            file.path("datasets", paste0(dataset.name, "-full-sample.rds")))
     saveRDS(dataset.obscured.sample, 
-            file.path("datasets", paste0(name, "-obscured-sample.rds")))
+            file.path("datasets", paste0(dataset.name, "-obscured-sample.rds")))
 }
 
 
@@ -93,7 +96,113 @@ for (name in datasets.names)
 
 flog.info("Step 2: learn classifiers")
 
-set.seed(SEED)
+# https://topepo.github.io/caret/bytag.html
+# https://topepo.github.io/caret/modelList.html
+
+CV_FOLDS                  = 10
+CV_PREPROCESSING_METHODS  = c("center", "scale")
+CV_PERFORMANCE_SELECTOR   = "Accuracy"
+CV_PERFORMANCE_MAXIMIZE   = TRUE
+
+classifiers.list = list(
+    
+    glm = NULL,
+    
+    nb = expand.grid(.fL=c(0), 
+                     .usekernel=c(FALSE, TRUE))
+)
+
+nestedCrossValidation = function(dataset, no.folds, model.name, model.grid)
+{
+    set.seed(SEED)
+    
+    flog.info(paste("Classifier:", model.name))
+    
+    colnames(dataset)[ncol(dataset)] = "Class"
+    
+    preproc.scheme = preProcess(dataset, 
+                                method=CV_PREPROCESSING_METHODS)
+    dataset = predict(preproc.scheme, dataset)
+    
+    idx.outer = createFolds(dataset$Class, 
+                            k=no.folds)
+    
+    folds.performance = data.frame()
+    
+    for (i in 1:no.folds)
+    {
+        flog.debug(paste("Fold", i))
+        
+        folds.inner = idx.outer[setdiff(1:no.folds, i)]
+        dataset.inner = dataset[as.numeric(unlist(folds.inner)), ]
+        
+        idx.inner = createFolds(dataset.inner$Class, 
+                                k=no.folds)
+        
+        train.control = trainControl(method="cv",
+                                     index=idx.inner)
+        
+        # TODO: suppress warnings
+        model = train(Class ~ ., 
+                      data=dataset.inner, 
+                      trControl=train.control, 
+                      method=model.name, 
+                      tuneGrid=model.grid,
+                      metric=CV_PERFORMANCE_SELECTOR,
+                      maximize=CV_PERFORMANCE_MAXIMIZE)
+        
+        folds.holdout = idx.outer[[i]]
+        dataset.holdout = dataset[folds.holdout, ]
+        
+        predictions = predict(model, dataset.holdout)
+        cf.matrix = confusionMatrix(predictions, dataset.holdout$Class)
+        
+        folds.performance = rbind(folds.performance,
+                                  data.frame(t(cf.matrix$overall)))
+    }
+    
+    flog.info("Training final model")
+    
+    train.control = trainControl(method="cv",
+                                 index=idx.outer)
+    
+    # TODO: suppress warnings
+    model = train(Class ~ ., 
+                  data=dataset, 
+                  trControl=train.control, 
+                  method=model.name, 
+                  tuneGrid=model.grid,
+                  metric=CV_PERFORMANCE_SELECTOR,
+                  maximize=CV_PERFORMANCE_MAXIMIZE)
+    
+    flog.info(paste0("Estimated performance of ", class(model$finalModel)[1],
+                     " - ", CV_PERFORMANCE_SELECTOR, ": ", 
+                     round(mean(folds.performance$Accuracy), 3)))
+    
+    return(list(model=model, folds.performance=folds.performance))
+}
+
+for (dataset.name in datasets.names)
+{
+    flog.info(paste("Dataset:", dataset.name))
+    
+    dataset = readRDS(file.path("datasets", paste0(dataset.name, "-full-sample.rds")))
+    
+    for (model.name in names(classifiers.list))
+    {
+        model.grid = classifiers.list[[model.name]]
+        
+        result.list = nestedCrossValidation(dataset, CV_FOLDS,
+                                            model.name, model.grid)
+        
+        #model.file.name  = gsub("\\*", model.name, CV_CLASSIFIER_MODEL_FILE)
+        
+        #saveRDS(result.list$model, 
+        #        paste0(classifiers.dir, model.file.name))
+    }
+    
+    flog.info("*****")
+}
 
 
 # ---- step-3-obsucre-dataset ----
