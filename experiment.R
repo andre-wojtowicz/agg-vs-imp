@@ -42,11 +42,14 @@ library(checkpoint)
 checkpoint("2016-04-01", verbose=TRUE)
 
 library(futile.logger)
+library(plyr)
 library(dplyr)
+library(ttutils)
 library(lazyeval)
 library(caret)
 library(e1071) # caret dependency
-library(klaR) # Naive Bayes
+library(kernlab) # SVM
+library(C50) # C5.0 tree
 
 LOGGER_LEVEL = futile.logger::INFO
 flog.threshold(LOGGER_LEVEL)
@@ -91,7 +94,6 @@ for (dataset.name in datasets.names)
             file.path("datasets", paste0(dataset.name, "-obscured-sample.rds")))
 }
 
-
 # ---- step-2-learn-classifiers ----
 
 flog.info("Step 2: learn classifiers")
@@ -104,15 +106,8 @@ CV_PREPROCESSING_METHODS  = c("center", "scale")
 CV_PERFORMANCE_SELECTOR   = "Accuracy"
 CV_PERFORMANCE_MAXIMIZE   = TRUE
 
-classifiers.list = list(
-    
-    glm = NULL,
-    
-    nb = expand.grid(.fL=c(0), 
-                     .usekernel=c(FALSE, TRUE))
-)
-
-nestedCrossValidation = function(dataset, no.folds, model.name, model.grid)
+nestedCrossValidation = function(dataset, no.folds, model.name, 
+                                 model.grid, model.attrs, model.tc.attrs)
 {
     set.seed(SEED)
     
@@ -131,7 +126,7 @@ nestedCrossValidation = function(dataset, no.folds, model.name, model.grid)
     
     for (i in 1:no.folds)
     {
-        flog.debug(paste("Fold", i))
+        flog.info(paste("Fold", i))
         
         folds.inner = idx.outer[setdiff(1:no.folds, i)]
         dataset.inner = dataset[as.numeric(unlist(folds.inner)), ]
@@ -139,17 +134,21 @@ nestedCrossValidation = function(dataset, no.folds, model.name, model.grid)
         idx.inner = createFolds(dataset.inner$Class, 
                                 k=no.folds)
         
-        train.control = trainControl(method="cv",
-                                     index=idx.inner)
+        train.control = merge(trainControl(method="cv", index=idx.inner),
+                              model.tc.attrs)
+        
+        training.arguments = merge(
+            list(form=Class ~ .,
+                 data=dataset.inner, 
+                 trControl=train.control, 
+                 method=model.name, 
+                 tuneGrid=model.grid,
+                 metric=CV_PERFORMANCE_SELECTOR,
+                 maximize=CV_PERFORMANCE_MAXIMIZE), 
+            model.attrs)
         
         # TODO: suppress warnings
-        model = train(Class ~ ., 
-                      data=dataset.inner, 
-                      trControl=train.control, 
-                      method=model.name, 
-                      tuneGrid=model.grid,
-                      metric=CV_PERFORMANCE_SELECTOR,
-                      maximize=CV_PERFORMANCE_MAXIMIZE)
+        model = do.call(train, training.arguments)
         
         folds.holdout = idx.outer[[i]]
         dataset.holdout = dataset[folds.holdout, ]
@@ -163,17 +162,21 @@ nestedCrossValidation = function(dataset, no.folds, model.name, model.grid)
     
     flog.info("Training final model")
     
-    train.control = trainControl(method="cv",
-                                 index=idx.outer)
+    train.control = merge(trainControl(method="cv", index=idx.outer),
+                          model.tc.attrs)
+    
+    training.arguments = merge(
+        list(form=Class ~ .,
+             data=dataset, 
+             trControl=train.control, 
+             method=model.name, 
+             tuneGrid=model.grid,
+             metric=CV_PERFORMANCE_SELECTOR,
+             maximize=CV_PERFORMANCE_MAXIMIZE), 
+        model.attrs)
     
     # TODO: suppress warnings
-    model = train(Class ~ ., 
-                  data=dataset, 
-                  trControl=train.control, 
-                  method=model.name, 
-                  tuneGrid=model.grid,
-                  metric=CV_PERFORMANCE_SELECTOR,
-                  maximize=CV_PERFORMANCE_MAXIMIZE)
+    model = do.call(train, training.arguments)
     
     flog.info(paste0("Estimated performance of ", class(model$finalModel)[1],
                      " - ", CV_PERFORMANCE_SELECTOR, ": ", 
@@ -182,18 +185,49 @@ nestedCrossValidation = function(dataset, no.folds, model.name, model.grid)
     return(list(model=model, folds.performance=folds.performance))
 }
 
+classifiers.list = c(#"svmLinear", 
+                     "C5.0")
+
+classifiers.tuning.params = list(
+    
+    #svmLinear = expand.grid(C=10^seq(-5,2))
+    
+    C5.0 = expand.grid(trials=c(1, 5, 10, 15, 20),
+                       model=c("tree", "rules"),
+                       winnow=c(TRUE,FALSE))
+)
+
+classifiers.basic.attributes = list(
+    
+    #svmLinear = list(scaled=FALSE)
+    
+    C5.0 = NULL
+    
+)
+
+classifiers.train.control.attributes = list(
+    
+    #svmLinear = NULL
+    
+    C5.0 = list(earlyStopping=FALSE)
+    
+)
+
 for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
     
     dataset = readRDS(file.path("datasets", paste0(dataset.name, "-full-sample.rds")))
     
-    for (model.name in names(classifiers.list))
+    for (model.name in classifiers.list)
     {
-        model.grid = classifiers.list[[model.name]]
+        model.grid  = classifiers.tuning.params[[model.name]]
+        model.attrs = classifiers.basic.attributes[[model.name]]
+        model.tc.attrs = classifiers.train.control.attributes[[model.name]]
         
         result.list = nestedCrossValidation(dataset, CV_FOLDS,
-                                            model.name, model.grid)
+                                            model.name, model.grid, model.attrs,
+                                            model.tc.attrs)
         
         #model.file.name  = gsub("\\*", model.name, CV_CLASSIFIER_MODEL_FILE)
         
