@@ -46,10 +46,16 @@ library(plyr)
 library(dplyr)
 library(ttutils)
 library(lazyeval)
+# caret - core
 library(caret)
-library(e1071) # caret dependency
+library(e1071)
+# caret - classifiers
 library(kernlab) # SVM
-library(C50) # C5.0 tree
+library(C50) # C5.0
+# caret - feature selection
+library(randomForest)
+library(ipred)
+library(rpart)
 
 
 LOGGER_LEVEL = futile.logger::INFO
@@ -60,7 +66,13 @@ flog.threshold(LOGGER_LEVEL)
 flog.info("Step 1: divide data")
 
 datasets.names = c("bank-marketing", "magic", "wine-quality")
-datasets.class.size = 300
+datasets.size.feature.selection = 150
+datasets.size.classification    = 300
+datasets.size.obscuration       = 300
+
+datasets.size.per.class = (datasets.size.feature.selection + 
+                           datasets.size.classification +
+                           datasets.size.obscuration) / 2
 
 for (dataset.name in datasets.names)
 {
@@ -72,27 +84,54 @@ for (dataset.name in datasets.names)
     dataset.levels = levels(dataset[, ncol(dataset)])
     dataset.classname = tail(colnames(dataset), 1)
     
-    dataset.1 = dataset %>% filter_(interp(quote(a==b), 
-                                           a=as.name(dataset.classname), 
-                                           b=dataset.levels[1]))
-    dataset.2 = dataset %>% filter_(interp(quote(a==b), 
-                                           a=as.name(dataset.classname), 
-                                           b=dataset.levels[2]))
+    dataset.class.1 = dataset %>% 
+                      filter_(interp(quote(a==b), 
+                                     a=as.name(dataset.classname), 
+                                     b=dataset.levels[1])) %>% 
+                      sample_n(datasets.size.per.class)
     
-    dataset.1.sample = dataset.1 %>% sample_n(datasets.class.size)
-    dataset.2.sample = dataset.2 %>% sample_n(datasets.class.size)
+    dataset.class.2 = dataset %>% 
+                      filter_(interp(quote(a==b), 
+                              a=as.name(dataset.classname), 
+                              b=dataset.levels[2])) %>% 
+                      sample_n(datasets.size.per.class)
     
-    dataset.sample = rbind(dataset.1.sample, dataset.2.sample)
-    dataset.sample = dataset.sample[sample(nrow(dataset.sample)),]
     
-    dataset.full.sample = dataset.sample[1:datasets.class.size, ]
-    dataset.obscured.sample = 
-        dataset.sample[(datasets.class.size+1):nrow(dataset.sample), ]
+    dataset.class.1.feature.selection = dataset.class.1 %>%
+        filter(row_number() <= datasets.size.feature.selection / 2)
     
-    saveRDS(dataset.full.sample, 
-            file.path("datasets", paste0(dataset.name, "-full-sample.rds")))
-    saveRDS(dataset.obscured.sample, 
-            file.path("datasets", paste0(dataset.name, "-obscured-sample.rds")))
+    dataset.class.1.classification = dataset.class.1 %>%
+        filter(between(row_number(), 
+                       datasets.size.feature.selection / 2 + 1, 
+                       (datasets.size.feature.selection + 
+                            datasets.size.classification) / 2))
+    
+    dataset.class.1.obscuration = dataset.class.1 %>%
+        filter(row_number() >= (datasets.size.feature.selection + 
+                                datasets.size.classification) / 2 + 1)
+    
+    
+    dataset.class.2.feature.selection = dataset.class.2 %>%
+        filter(row_number() <= datasets.size.feature.selection / 2)
+    
+    dataset.class.2.classification = dataset.class.2 %>%
+        filter(between(row_number(), 
+                       datasets.size.feature.selection / 2 + 1, 
+                       (datasets.size.feature.selection + 
+                            datasets.size.classification) / 2))
+    
+    dataset.class.2.obscuration = dataset.class.2 %>%
+        filter(row_number() >= (datasets.size.feature.selection + 
+                                    datasets.size.classification) / 2 + 1)
+
+    
+    saveRDS(rbind(dataset.class.1.feature.selection, dataset.class.2.feature.selection), 
+            file.path("datasets", paste0(dataset.name, "-feature-selection.rds")))
+    saveRDS(rbind(dataset.class.1.classification, dataset.class.2.classification), 
+            file.path("datasets", paste0(dataset.name, "-classification.rds")))
+    saveRDS(rbind(dataset.class.1.obscuration, dataset.class.2.obscuration), 
+            file.path("datasets", paste0(dataset.name, "-obscuration.rds")))
+
 }
 
 # ---- step-2-learn-classifiers ----
@@ -102,22 +141,20 @@ flog.info("Step 2: learn classifiers")
 # https://topepo.github.io/caret/bytag.html
 # https://topepo.github.io/caret/modelList.html
 
-CV_FOLDS                  = 10
-CV_PREPROCESSING_METHODS  = c("center", "scale")
-CV_PERFORMANCE_SELECTOR   = "Accuracy"
-CV_PERFORMANCE_MAXIMIZE   = TRUE
+ncv.folds                  = 10
+ncv.preprocessing.methods  = c("center", "scale")
+ncv.performance.selector   = "Accuracy"
+ncv.performance.maximize   = TRUE
 
 nestedCrossValidation = function(dataset, no.folds, model.name, 
                                  model.grid, model.attrs)
 {
     set.seed(SEED)
     
-    flog.info(paste("Classifier:", model.name))
-    
     colnames(dataset)[ncol(dataset)] = "Class"
     
     preproc.scheme = preProcess(dataset, 
-                                method=CV_PREPROCESSING_METHODS)
+                                method=ncv.preprocessing.methods)
     dataset = predict(preproc.scheme, dataset)
     
     idx.outer = createFolds(dataset$Class, 
@@ -143,8 +180,8 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
                  trControl=train.control, 
                  method=model.name, 
                  tuneGrid=model.grid,
-                 metric=CV_PERFORMANCE_SELECTOR,
-                 maximize=CV_PERFORMANCE_MAXIMIZE), 
+                 metric=ncv.performance.selector,
+                 maximize=ncv.performance.maximize), 
             model.attrs)
         
         model = suppressWarnings(do.call(train, training.arguments))
@@ -169,15 +206,15 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
              trControl=train.control, 
              method=model.name, 
              tuneGrid=model.grid,
-             metric=CV_PERFORMANCE_SELECTOR,
-             maximize=CV_PERFORMANCE_MAXIMIZE), 
+             metric=ncv.performance.selector,
+             maximize=ncv.performance.maximize), 
         model.attrs)
     
     model = suppressWarnings(do.call(train, training.arguments))
     
     flog.info(paste0("Estimated performance of ", class(model$finalModel)[1],
-                     " - ", CV_PERFORMANCE_SELECTOR, ": ", 
-                     round(mean(folds.performance[[CV_PERFORMANCE_SELECTOR]]), 3)))
+                     " - ", ncv.performance.selector, ": ", 
+                     round(mean(folds.performance[[ncv.performance.selector]]), 3)))
     
     return(list(model=model, folds.performance=folds.performance))
 }
@@ -186,13 +223,22 @@ classifiers.list = c("svmLinear",
                      "C5.0",
                      "knn")
 
+classifiers.feature.selection.method = list(
+    
+    svmLinear = rfFuncs,
+    
+    C5.0 = NULL, # internal
+    
+    knn = treebagFuncs
+)
+
 classifiers.tuning.params = list(
     
     svmLinear = expand.grid(C=10^seq(-5,2)),
     
     C5.0 = expand.grid(trials=c(1, 5, 10, 15, 20),
                        model=c("tree", "rules"),
-                       winnow=c(TRUE,FALSE)),
+                       winnow=c(TRUE)),
     
     knn = expand.grid(k=c(1:10))
 )
@@ -206,24 +252,61 @@ classifiers.basic.attributes = list(
     knn = NULL
 )
 
+# TODO: - rename in datasets all colnames (lowercase, space into dot, no specials)
+#       - rename in datasets all level names (lowercase, space into dot, no specials)
+
 for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
     
-    dataset = readRDS(file.path("datasets", paste0(dataset.name, "-full-sample.rds")))
-    
     for (model.name in classifiers.list)
     {
+        flog.info(paste("Classifier:", model.name))
+        
+        dataset.feature.selection = 
+            readRDS(file.path("datasets", paste0(dataset.name, "-feature-selection.rds")))
+        
+        dataset.classification = 
+            readRDS(file.path("datasets", paste0(dataset.name, "-classification.rds")))
+        
+        fs.method  = classifiers.feature.selection.method[[model.name]]
+        
+        if (!is.null(fs.method))
+        {
+            set.seed(SEED)
+            
+            flog.info("Feature selection")
+            
+            fs.results = 
+                rfe(dataset.feature.selection[, 1:(ncol(dataset.feature.selection)-1)],
+                    dataset.feature.selection[, ncol(dataset.feature.selection)],
+                    sizes = 1:ncol(dataset.feature.selection),
+                    rfeControl=rfeControl(functions=fs.method,
+                                          method="cv",
+                                          number=10))
+            
+            flog.info(paste("Selected", length(predictors(fs.results)),
+                            "from", ncol(dataset.feature.selection)-1, "featrues"))
+
+            
+            dataset.classification = 
+                dataset.classification[, c(predictors(fs.results), 
+                                           tail(colnames(dataset.classification), 1))]
+            
+        } else {
+            flog.info("Internal feature selection - enlarging classification dataset")
+            
+            dataset.classification = rbind(dataset.feature.selection,
+                                           dataset.classification)
+        }
+
+
         model.grid  = classifiers.tuning.params[[model.name]]
         model.attrs = classifiers.basic.attributes[[model.name]]
         
-        result.list = nestedCrossValidation(dataset, CV_FOLDS,
+        result.list = nestedCrossValidation(dataset.classification, ncv.folds,
                                             model.name, model.grid, model.attrs)
         
-        #model.file.name  = gsub("\\*", model.name, CV_CLASSIFIER_MODEL_FILE)
-        
-        #saveRDS(result.list$model, 
-        #        paste0(classifiers.dir, model.file.name))
     }
     
     flog.info("*****")
