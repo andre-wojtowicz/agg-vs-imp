@@ -1,9 +1,9 @@
 # OVERVIEW:
 #
 # Classifiers:
-#   K1 - logistic regression
-#   K2 - decision tree
-#   K3 - SVM
+#   K1 - SVM
+#   K2 - C5.0
+#   K3 - kNN
 # 
 # Imputation:
 #   I1 - median
@@ -252,6 +252,11 @@ classifiers.basic.attributes = list(
     knn = NULL
 )
 
+if(!dir.exists("models"))
+{
+    dir.create("models")
+}
+
 for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
@@ -305,8 +310,9 @@ for (dataset.name in datasets.names)
         result.list = nestedCrossValidation(dataset.classification, ncv.folds,
                                             model.name, model.grid, model.attrs)
         
-        # TODO: add saving model
-        
+        saveRDS(result.list$model, 
+                file.path("models", 
+                          paste0(dataset.name, "-", model.name, ".rds")))
     }
     
     flog.info("*****")
