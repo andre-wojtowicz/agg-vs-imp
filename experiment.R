@@ -42,6 +42,7 @@ library(checkpoint)
 checkpoint("2016-04-01", verbose = TRUE)
 
 library(futile.logger)
+library(sets)
 library(plyr)
 library(dplyr)
 library(ttutils)
@@ -331,16 +332,26 @@ for (dataset.name in datasets.names)
     dataset.obscuration =
         readRDS(file.path("datasets", paste0(dataset.name, "-obscuration.rds")))
 
+    dataset.used.predictors = set()
+
     for (model.name in classifiers.list)
     {
         model = readRDS(file.path("models",
                                   paste0(dataset.name, "-", model.name, ".rds")))
 
-        browser()
+        predictors.names = tryCatch(
+            predictors(model),
+            error = function(e) { model$coefnames })
 
-        attr(model$terms, "term.labels")
+        for (column.name in colnames(dataset.obscuration)[1:(ncol(dataset.obscuration) - 1)])
+        {
+            if (any(grepl(paste0("^", column.name), predictors.names)))
+                dataset.used.predictors = dataset.used.predictors | set(column.name)
+        }
     }
 
+    flog.info(paste("Used predictors:", length(dataset.used.predictors),
+                    "of", ncol(dataset.obscuration) - 1))
 }
 
 # ---- step-4-calculate-classifiers-performance ----

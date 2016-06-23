@@ -17,3 +17,5 @@ vignettes/*.pdf
 .httr-oauth
 
 .Rproj.user
+
+models/
