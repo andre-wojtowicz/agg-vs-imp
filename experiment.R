@@ -172,7 +172,7 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
         idx.inner = createFolds(dataset.inner$Class, 
                                 k=no.folds)
         
-        train.control = trainControl(method="cv", index=idx.inner)
+        train.control = trainControl(method="cv", index=idx.inner, allowParallel=TRUE)
         
         training.arguments = merge(
             list(form=Class ~ .,
@@ -225,11 +225,11 @@ classifiers.list = c("svmLinear",
 
 classifiers.feature.selection.method = list(
     
-    svmLinear = rfFuncs,
+    svmLinear = "rfFuncs",
     
     C5.0 = NULL, # internal
     
-    knn = treebagFuncs
+    knn = "treebagFuncs"
 )
 
 classifiers.tuning.params = list(
@@ -252,9 +252,6 @@ classifiers.basic.attributes = list(
     knn = NULL
 )
 
-# TODO: - rename in datasets all colnames (lowercase, space into dot, no specials)
-#       - rename in datasets all level names (lowercase, space into dot, no specials)
-
 for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
@@ -275,13 +272,13 @@ for (dataset.name in datasets.names)
         {
             set.seed(SEED)
             
-            flog.info("Feature selection")
+            flog.info(paste("Feature selection:", fs.method))
             
             fs.results = 
                 rfe(dataset.feature.selection[, 1:(ncol(dataset.feature.selection)-1)],
                     dataset.feature.selection[, ncol(dataset.feature.selection)],
                     sizes = 1:ncol(dataset.feature.selection),
-                    rfeControl=rfeControl(functions=fs.method,
+                    rfeControl=rfeControl(functions=eval(as.name(fs.method)),
                                           method="cv",
                                           number=10))
             
@@ -294,7 +291,8 @@ for (dataset.name in datasets.names)
                                            tail(colnames(dataset.classification), 1))]
             
         } else {
-            flog.info("Internal feature selection - enlarging classification dataset")
+            flog.info("Internal feature selection")
+            flog.info("Enlarging classification dataset")
             
             dataset.classification = rbind(dataset.feature.selection,
                                            dataset.classification)
@@ -306,6 +304,8 @@ for (dataset.name in datasets.names)
         
         result.list = nestedCrossValidation(dataset.classification, ncv.folds,
                                             model.name, model.grid, model.attrs)
+        
+        # TODO: add saving model
         
     }
     
