@@ -135,6 +135,8 @@ for (dataset.name in datasets.names)
 
 }
 
+flog.info(paste(rep("*", 50), collapse = ""))
+
 # ---- step-2-learn-classifiers ----
 
 flog.info("Step 2: learn classifiers")
@@ -215,11 +217,29 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
 
     model = suppressWarnings(do.call(train, training.arguments))
 
+    attr(model, "folds.performance") = folds.performance
+
     flog.info(paste0("Estimated performance of ", class(model$finalModel)[1],
                      " - ", ncv.performance.selector, ": ",
                      round(mean(folds.performance[[ncv.performance.selector]]), 3)))
 
-    return(list(model = model, folds.performance = folds.performance))
+    used.predictors = set()
+
+    predictors.names = tryCatch(
+        predictors(model),
+        error = function(e) { model$coefnames })
+
+    for (column.name in colnames(dataset)[1:(ncol(dataset) - 1)])
+    {
+        if (any(grepl(paste0("^", column.name), predictors.names)))
+            used.predictors = used.predictors | set(column.name)
+    }
+
+    attr(model, "used.predictors") = used.predictors
+
+    flog.info(paste("Used predictors:", length(used.predictors)))
+
+    return(model)
 }
 
 classifiers.list = c("svmLinear",
@@ -309,17 +329,19 @@ for (dataset.name in datasets.names)
         model.grid  = classifiers.tuning.params[[model.name]]
         model.attrs = classifiers.basic.attributes[[model.name]]
 
-        result.list = nestedCrossValidation(dataset.classification, ncv.folds,
-                                            model.name, model.grid, model.attrs)
+        model = nestedCrossValidation(dataset.classification, ncv.folds,
+                                      model.name, model.grid, model.attrs)
 
-        saveRDS(result.list$model,
-                file.path("models",
-                          paste0(dataset.name, "-", model.name, ".rds")))
+        saveRDS(model, file.path("models",
+                                 paste0(dataset.name, "-", model.name, ".rds")))
+
+        flog.info(paste(rep("*", 10), collapse = ""))
     }
 
-    flog.info("*****")
+    flog.info(paste(rep("*", 25), collapse = ""))
 }
 
+flog.info(paste(rep("*", 50), collapse = ""))
 
 # ---- step-3-obsucre-dataset ----
 
@@ -339,20 +361,14 @@ for (dataset.name in datasets.names)
         model = readRDS(file.path("models",
                                   paste0(dataset.name, "-", model.name, ".rds")))
 
-        predictors.names = tryCatch(
-            predictors(model),
-            error = function(e) { model$coefnames })
-
-        for (column.name in colnames(dataset.obscuration)[1:(ncol(dataset.obscuration) - 1)])
-        {
-            if (any(grepl(paste0("^", column.name), predictors.names)))
-                dataset.used.predictors = dataset.used.predictors | set(column.name)
-        }
+        dataset.used.predictors = dataset.used.predictors | attr(model, "used.predictors")
     }
 
     flog.info(paste("Used predictors:", length(dataset.used.predictors),
                     "of", ncol(dataset.obscuration) - 1))
 }
+
+flog.info(paste(rep("*", 50), collapse = ""))
 
 # ---- step-4-calculate-classifiers-performance ----
 
@@ -360,11 +376,15 @@ flog.info("Step 4: calculate classifiers performance")
 
 
 
+flog.info(paste(rep("*", 50), collapse = ""))
+
 # ---- step-5-choose-best-imputation ----
 
 flog.info("Step 5: choose best imputation")
 
 
+
+flog.info(paste(rep("*", 50), collapse = ""))
 
 # ---- step-6-choose-best-aggregation ----
 
@@ -372,7 +392,12 @@ flog.info("Step 6: choose best aggregation")
 
 
 
+flog.info(paste(rep("*", 50), collapse = ""))
+
 # ---- step-7-compare-results ----
 
 flog.info("Step 7: compare results")
 
+
+
+flog.info(paste(rep("*", 50), collapse = ""))
