@@ -35,11 +35,20 @@
 rm(list = ls())
 
 SEED = 1337
-
 set.seed(SEED)
 
 library(checkpoint)
-checkpoint("2016-04-01", verbose = TRUE)
+
+CHECKPOINT_QUICK_LOAD = TRUE
+
+if (CHECKPOINT_QUICK_LOAD) # approx. x10 faster checkpoint library loading
+{
+    options(checkpoint.mranUrl = "https://mran.microsoft.com/") # assume https
+    assignInNamespace("is.404", function(mran, warn = TRUE) { FALSE },
+                      "checkpoint") # disable url checking
+}
+
+checkpoint("2016-04-01", verbose = TRUE, scanForPackages = TRUE)
 
 library(futile.logger)
 library(sets)
@@ -287,6 +296,13 @@ for (dataset.name in datasets.names)
     for (model.name in classifiers.list)
     {
         flog.info(paste("Classifier:", model.name))
+
+        if (file.exists(file.path("models",
+                                  paste0(dataset.name, "-", model.name, ".rds"))))
+        {
+            flog.info("Model exists, skipping")
+            next
+        }
 
         dataset.feature.selection =
             readRDS(file.path("datasets", paste0(dataset.name, "-feature-selection.rds")))
