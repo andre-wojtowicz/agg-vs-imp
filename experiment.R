@@ -169,6 +169,7 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
                                 method = ncv.preprocessing.methods)
     dataset = predict(preproc.scheme, dataset)
 
+
     idx.outer = createFolds(dataset$Class,
                             k = no.folds)
 
@@ -207,7 +208,8 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
         cf.matrix = confusionMatrix(predictions, dataset.holdout$Class)
 
         folds.performance = rbind(folds.performance,
-                                  data.frame(t(cf.matrix$overall)))
+                                  data.frame(t(c(cf.matrix$overall,
+                                                 cf.matrix$byClass))))
     }
 
     flog.info("Training final model")
@@ -227,6 +229,7 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
     model = suppressWarnings(do.call(train, training.arguments))
 
     attr(model, "folds.performance") = folds.performance
+    attr(model, "preproc.scheme")    = preproc.scheme
 
     flog.info(paste0("Estimated performance of ", class(model$finalModel)[1],
                      " - ", ncv.performance.selector, ": ",
@@ -385,26 +388,22 @@ for (dataset.name in datasets.names)
     flog.info(paste("Used predictors:", length(dataset.used.predictors),
                     "of", ncol(dataset.obscuration) - 1))
 
-    dataset.used = dataset.obscuration[, c(as.character(dataset.used.predictors),
-                                           tail(colnames(dataset.obscuration), 1))]
+    dataset.class.levels = levels(dataset.obscuration[, ncol(dataset.obscuration)])
+    dataset.class.name   = tail(colnames(dataset.obscuration), 1)
 
-    dataset.used.class.levels = levels(dataset.used[, ncol(dataset.used)])
-    dataset.used.class.name   = tail(colnames(dataset.used), 1)
+    dataset.1 = dataset.obscuration %>%
+                filter_(interp(quote(a == b),
+                        a = as.name(dataset.class.name),
+                        b = dataset.class.levels[1]))
 
-
-    dataset.used.1 = dataset.used %>%
-                     filter_(interp(quote(a == b),
-                                    a = as.name(dataset.used.class.name),
-                                    b = dataset.used.class.levels[1]))
-
-    dataset.used.2 = dataset.used %>%
-        filter_(interp(quote(a == b),
-                       a = as.name(dataset.used.class.name),
-                       b = dataset.used.class.levels[2]))
+    dataset.2 = dataset.obscuration %>%
+                filter_(interp(quote(a == b),
+                        a = as.name(dataset.class.name),
+                        b = dataset.class.levels[2]))
 
     dataset.obscured = data.frame()
 
-    for (dataset in list(dataset.used.1, dataset.used.2))
+    for (dataset in list(dataset.1, dataset.2))
     {
         dataset.obscured = rbind(dataset.obscured, dataset[1:(nrow(dataset)/3), ])
 
@@ -415,15 +414,25 @@ for (dataset.name in datasets.names)
         for (i in 1:(length(dataset.used.predictors) - 1))
         {
             chunk = dataset[dataset.nas.idx[[i]] + (nrow(dataset)/3), ]
-            nas.matrix = matrix(FALSE, nrow = nrow(chunk), ncol = ncol(chunk) - 1)
+            chunk.not.used = chunk[, !(colnames(chunk) %in%
+                                           c(as.character(dataset.used.predictors),
+                                             dataset.class.name))]
+            chunk.used     = chunk[,   colnames(chunk) %in%
+                                           c(as.character(dataset.used.predictors),
+                                             dataset.class.name)]
+
+            nas.matrix = matrix(FALSE, nrow = nrow(chunk.used), ncol = ncol(chunk.used) - 1)
             nas.matrix = t(apply(nas.matrix, 1, function(row) {
                 row[sample(1:length(row), i)] = TRUE;
                 row}))
 
             for (pos in as.data.frame(t(which(nas.matrix == TRUE, arr.ind = TRUE))))
             {
-                chunk[pos[1], pos[2]] = NA
+                chunk.used[pos[1], pos[2]] = NA
             }
+
+            chunk = cbind(chunk.used, chunk.not.used)
+            chunk = chunk[, colnames(dataset)]
 
             dataset.obscured = rbind(dataset.obscured, chunk)
         }
@@ -436,10 +445,47 @@ for (dataset.name in datasets.names)
 
 flog.info(paste(rep("*", 50), collapse = ""))
 
-# ---- step-4-calculate-classifiers-performance ----
+# ---- step-4-classifiers-performance-on-obscured-dataset ----
 
-flog.info("Step 4: calculate classifiers performance")
+flog.info("Step 4: classifiers performance on obscured dataset")
 
+for (dataset.name in datasets.names)
+{
+    flog.info(paste("Dataset:", dataset.name))
+
+    dataset.obscured =
+        readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+
+    for (model.name in classifiers.list)
+    {
+        flog.info(paste("Model:", model.name))
+
+        model = readRDS(file.path("models",
+                                  paste0(dataset.name, "-", model.name, ".rds")))
+
+        preproc.scheme = attr(model, "preproc.scheme")
+        dataset.obscured.preprocessed = predict(preproc.scheme, dataset.obscured)
+
+        dataset.no.nas =
+            dataset.obscured.preprocessed[which(rowSums(is.na(
+                dataset.obscured.preprocessed[,
+                    as.character(attr(model, "used.predictors"))])) == 0), ]
+
+        predictions = predict(model, dataset.no.nas, na.action = NULL)
+        cf.matrix = confusionMatrix(predictions,
+                                    dataset.no.nas[, ncol(dataset.no.nas)])
+
+        flog.info(paste("Accuracy:    ", round(cf.matrix$overall["Accuracy"], 3)))
+        flog.info(paste("Sensitivity: ", round(cf.matrix$byClass["Sensitivity"], 3)))
+        flog.info(paste("Specificity: ", round(cf.matrix$byClass["Specificity"], 3)))
+        flog.info(paste("Decisiveness:",
+                        round(nrow(dataset.no.nas)/nrow(dataset.obscured), 3)))
+
+        flog.info(paste(rep("*", 10), collapse = ""))
+    }
+
+    flog.info(paste(rep("*", 25), collapse = ""))
+}
 
 
 flog.info(paste(rep("*", 50), collapse = ""))
