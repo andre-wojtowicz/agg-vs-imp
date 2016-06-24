@@ -19,3 +19,7 @@ vignettes/*.pdf
 .Rproj.user
 
 models/
+datasets/*-classification.rds
+datasets/*-feature-selection.rds
+datasets/*-obscuration.rds
+datasets/*-obscured.rds

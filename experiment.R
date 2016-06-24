@@ -76,9 +76,9 @@ flog.threshold(LOGGER_LEVEL)
 flog.info("Step 1: divide data")
 
 datasets.names = c("bank-marketing", "magic", "wine-quality")
-datasets.size.feature.selection = 150
-datasets.size.classification    = 300
-datasets.size.obscuration       = 300
+datasets.size.feature.selection = 150         # TODO: 250
+datasets.size.classification    = 300         #       750
+datasets.size.obscuration       = 300         #       750
 
 datasets.size.per.class = (datasets.size.feature.selection +
                            datasets.size.classification +
@@ -367,6 +367,8 @@ for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
 
+    set.seed(SEED)
+
     dataset.obscuration =
         readRDS(file.path("datasets", paste0(dataset.name, "-obscuration.rds")))
 
@@ -382,6 +384,54 @@ for (dataset.name in datasets.names)
 
     flog.info(paste("Used predictors:", length(dataset.used.predictors),
                     "of", ncol(dataset.obscuration) - 1))
+
+    dataset.used = dataset.obscuration[, c(as.character(dataset.used.predictors),
+                                           tail(colnames(dataset.obscuration), 1))]
+
+    dataset.used.class.levels = levels(dataset.used[, ncol(dataset.used)])
+    dataset.used.class.name   = tail(colnames(dataset.used), 1)
+
+
+    dataset.used.1 = dataset.used %>%
+                     filter_(interp(quote(a == b),
+                                    a = as.name(dataset.used.class.name),
+                                    b = dataset.used.class.levels[1]))
+
+    dataset.used.2 = dataset.used %>%
+        filter_(interp(quote(a == b),
+                       a = as.name(dataset.used.class.name),
+                       b = dataset.used.class.levels[2]))
+
+    dataset.obscured = data.frame()
+
+    for (dataset in list(dataset.used.1, dataset.used.2))
+    {
+        dataset.obscured = rbind(dataset.obscured, dataset[1:(nrow(dataset)/3), ])
+
+        dataset.nas.idx = createFolds(dataset[(nrow(dataset)/3 + 1):nrow(dataset),
+                                              ncol(dataset)],
+                                      k = length(dataset.used.predictors) - 1)
+
+        for (i in 1:(length(dataset.used.predictors) - 1))
+        {
+            chunk = dataset[dataset.nas.idx[[i]] + (nrow(dataset)/3), ]
+            nas.matrix = matrix(FALSE, nrow = nrow(chunk), ncol = ncol(chunk) - 1)
+            nas.matrix = t(apply(nas.matrix, 1, function(row) {
+                row[sample(1:length(row), i)] = TRUE;
+                row}))
+
+            for (pos in as.data.frame(t(which(nas.matrix == TRUE, arr.ind = TRUE))))
+            {
+                chunk[pos[1], pos[2]] = NA
+            }
+
+            dataset.obscured = rbind(dataset.obscured, chunk)
+        }
+    }
+
+    saveRDS(dataset.obscured,
+            file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+
 }
 
 flog.info(paste(rep("*", 50), collapse = ""))
