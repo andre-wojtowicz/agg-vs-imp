@@ -1,5 +1,10 @@
 # OVERVIEW:
 #
+# Datasets:
+#   D1 - bank-marketing
+#   D2 - magic
+#   D3 - wine-quality
+#
 # Classifiers:
 #   K1 - SVM
 #   K2 - C5.0
@@ -12,11 +17,6 @@
 #
 # Agregation operators:
 #   A1 - ...
-#
-# Datasets:
-#   D1 -
-#   D2 -
-#   D3 -
 #
 # Procedure for each Di:
 #   1. Divide Di into Di^1 and Di^2
@@ -66,7 +66,9 @@ library(C50) # C5.0
 library(randomForest)
 library(ipred)
 library(rpart)
-
+# imputation
+library(mlr) # median & mode
+library(missForest) # random forest
 
 LOGGER_LEVEL = futile.logger::INFO
 flog.threshold(LOGGER_LEVEL)
@@ -494,7 +496,51 @@ flog.info(paste(rep("*", 50), collapse = ""))
 
 flog.info("Step 5: choose best imputation")
 
+imputation.median.mode = function(data)
+{
+    colnames.ord.factor =
+        names(which(sapply(colnames(data),
+                           function(x){ all(class(data[[x]])
+                                            == c("ordered", "factor"))})
+                    == TRUE))
 
+    impute(data,
+           target = tail(colnames(data), 1),
+           classes = list(numeric = imputeMedian(),
+                          integer   = imputeMedian(),
+                          factor    = imputeMode()),
+           cols = sapply(colnames.ord.factor,
+                         function(x){ x = imputeMode() },
+                         simplify = F))$data
+}
+
+imputation.random.forest = function(data)
+{
+    cbind(missForest(data[, -ncol(data)])$ximp,
+          data[, ncol(data)])
+}
+
+for (dataset.name in datasets.names)
+{
+    flog.info(paste("Dataset:", dataset.name))
+
+    dataset.obscured =
+        readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+
+    for (model.name in classifiers.list)
+    {
+        flog.info(paste("Model:", model.name))
+
+        model = readRDS(file.path("models",
+                                  paste0(dataset.name, "-", model.name, ".rds")))
+
+        preproc.scheme = attr(model, "preproc.scheme")
+        dataset.obscured.preprocessed = predict(preproc.scheme, dataset.obscured)
+
+        browser()
+
+    }
+}
 
 flog.info(paste(rep("*", 50), collapse = ""))
 
