@@ -69,6 +69,7 @@ library(rpart)
 # imputation
 library(mlr) # median & mode
 library(missForest) # random forest
+library(mice) # multivariate imputation by chained equations
 
 LOGGER_LEVEL = futile.logger::INFO
 flog.threshold(LOGGER_LEVEL)
@@ -498,6 +499,8 @@ flog.info("Step 5: choose best imputation")
 
 imputation.median.mode = function(data)
 {
+    flog.info("Imputation: median/mode")
+
     colnames.ord.factor =
         names(which(sapply(colnames(data),
                            function(x){ all(class(data[[x]])
@@ -516,7 +519,22 @@ imputation.median.mode = function(data)
 
 imputation.random.forest = function(data)
 {
-    cbind(missForest(data[, -ncol(data)])$ximp,
+    flog.info("Imputation: random forest")
+
+    suppressWarnings(capture.output(data.new <- missForest(data[, -ncol(data)])$ximp))
+
+    cbind(data.new,
+          data[, ncol(data)])
+}
+
+imputation.mice = function(data)
+{
+    flog.info("Imputation: multivariate imputation by chained equations")
+
+    cbind(complete(mice(data[, -ncol(data)],
+                        m = 1, maxit = 10,
+                        printFlag = FALSE),
+                   action = 1),
           data[, ncol(data)])
 }
 
@@ -537,8 +555,12 @@ for (dataset.name in datasets.names)
         preproc.scheme = attr(model, "preproc.scheme")
         dataset.obscured.preprocessed = predict(preproc.scheme, dataset.obscured)
 
-        browser()
-
+        for (func in list(imputation.median.mode,
+                          imputation.random.forest,
+                          imputation.mice))
+        {
+            func(dataset.obscured.preprocessed)
+        }
     }
 }
 
