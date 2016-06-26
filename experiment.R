@@ -71,7 +71,7 @@ library(rpart)
 # imputation
 library(mlr) # median & mode
 library(missForest) # random forest
-library(mice) # multivariate imputation by chained equations
+library(mice) # chained equations
 
 LOGGER_LEVEL = futile.logger::INFO
 flog.threshold(LOGGER_LEVEL)
@@ -236,7 +236,7 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
     attr(model, "folds.performance") = folds.performance
     attr(model, "preproc.scheme")    = preproc.scheme
 
-    flog.info(paste0("Estimated performance - ", ncv.performance.selector, ": ",
+    flog.info(paste0("Estimated ", ncv.performance.selector, ": ",
                      round(mean(folds.performance[[ncv.performance.selector]]), 3)))
 
     used.predictors = set()
@@ -328,7 +328,7 @@ for (dataset.name in datasets.names)
 
             folds.performance = attr(model, "folds.performance")
 
-            flog.info(paste0("Estimated performance - ", ncv.performance.selector, ": ",
+            flog.info(paste0("Estimated ", ncv.performance.selector, ": ",
                              round(mean(folds.performance[[ncv.performance.selector]]), 3)))
 
             flog.info(paste(rep("*", 10), collapse = ""))
@@ -530,8 +530,6 @@ flog.info("Step 5: choose best imputation")
 
 imputation.median.mode = function(data)
 {
-    flog.info("Imputation: median/mode")
-
     colnames.ord.factor =
         names(which(sapply(colnames(data),
                            function(x){ all(class(data[[x]])
@@ -550,25 +548,109 @@ imputation.median.mode = function(data)
 
 imputation.random.forest = function(data)
 {
-    flog.info("Imputation: random forest")
-
     suppressWarnings(
         capture.output(
             data.new <- missForest::missForest(data[, -ncol(data)])$ximp
     ))
 
-    cbind(data.new, data[, ncol(data)])
+    cbind(data.new, data[ncol(data)])
 }
 
 imputation.mice = function(data)
 {
-    flog.info("Imputation: multivariate imputation by chained equations")
+    data.imputed = mice::complete(mice::mice(data[, -ncol(data)],
+                                             m = 1, maxit = 10,
+                                             printFlag = FALSE),
+                                  action = 1)
 
-    cbind(mice::complete(mice::mice(data[, -ncol(data)],
-                                    m = 1, maxit = 10,
-                                    printFlag = FALSE),
-                               action = 1),
-                data[, ncol(data)])
+    for (colname in colnames(data.imputed))
+    {
+        attr(data.imputed[[colname]], "contrasts") = NULL
+    }
+
+    cbind(data.imputed, data[ncol(data)])
+}
+
+crossValidationForImputation = function(datasets, models, no.folds)
+{
+    set.seed(SEED)
+
+    idx.cv = caret::createFolds(1:nrow(datasets[[1]]),
+                                k = no.folds)
+
+    which.function = ifelse(ncv.performance.maximize, which.max, which.min)
+
+    params.grid = expand.grid(1:length(datasets), 1:length(models))
+
+    folds.performances = data.frame()
+
+    for (i in 1:no.folds)
+    {
+        flog.info(paste("Fold", i))
+
+        idx.train = idx.cv[setdiff(1:no.folds, i)]
+        idx.test  = idx.cv[i]
+
+        perf.measures = apply(params.grid, 1,
+              function(ids) {
+                    dataset.train = datasets[[ids[1]]][unname(unlist(idx.train)), ]
+                    model         = models[[ids[2]]]
+
+                    predictions = stats::predict(model, dataset.train)
+                    cf.matrix =
+                        caret::confusionMatrix(predictions,
+                                               dataset.train[, ncol(dataset.train)])
+                    cf.matrix$overall[[ncv.performance.selector]]
+        })
+
+        best.id = which.function(perf.measures)
+
+        dataset.test = datasets[[params.grid[best.id, 1]]][unname(unlist(idx.test)), ]
+        model        = models[[params.grid[best.id, 2]]]
+
+        predictions = stats::predict(model, dataset.test)
+        cf.matrix =
+            caret::confusionMatrix(predictions,
+                                   dataset.test[, ncol(dataset.test)])
+
+        folds.performances = rbind(folds.performance,
+                                   data.frame(t(c(cf.matrix$overall,
+                                                  cf.matrix$byClass))))
+
+    }
+
+    flog.info("Choosing final model")
+
+    perf.measures = apply(params.grid, 1,
+              function(ids) {
+                  dataset = datasets[[ids[1]]]
+                  model   = models[[ids[2]]]
+
+                  predictions = stats::predict(model, dataset)
+                  cf.matrix = caret::confusionMatrix(predictions,
+                                                     dataset[, ncol(dataset)])
+                  cf.matrix$overall[[ncv.performance.selector]]
+              })
+
+    best.id = which.function(perf.measures)
+
+    dataset      = datasets[[params.grid[best.id, 1]]]
+    model        = models[[params.grid[best.id, 2]]]
+
+    flog.info(paste("Choosed classifier:", model$method))
+    if (length(models) > 1)
+    {
+        flog.info(paste("Choosed imputation:", names(datasets)[best.id]))
+    }
+    flog.info(paste0("Estimated ", ncv.performance.selector, ":    ",
+                     round(mean(folds.performances[[ncv.performance.selector]]), 3)))
+    flog.info(paste0("Estimated Sensitivity: ",
+                     round(mean(folds.performances[["Sensitivity"]]), 3)))
+    flog.info(paste0("Estimated Specificity: ",
+                     round(mean(folds.performances[["Specificity"]]), 3)))
+
+    return(list("model"      = model$method,
+                "imputation" = names(datasets)[best.id]))
 }
 
 for (dataset.name in datasets.names)
@@ -578,6 +660,36 @@ for (dataset.name in datasets.names)
     dataset.obscured =
         readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
 
+    imputation.methods = list("median/mode"       = imputation.median.mode,
+                              "random forest"     = imputation.random.forest,
+                              "chained equations" = imputation.mice)
+
+
+    flog.info(paste("Baseline model:", classifiers.baseline))
+
+    model = readRDS(file.path("models",
+                              paste0(dataset.name, "-", classifiers.baseline, ".rds")))
+
+    preproc.scheme = attr(model, "preproc.scheme")
+    dataset.obscured.preprocessed = stats::predict(preproc.scheme,
+                                                   dataset.obscured)
+
+    datasets.imputed = lapply(names(imputation.methods), function(name){
+        flog.info(paste("Imputation:", name))
+        imputation.methods[[name]](dataset.obscured.preprocessed) })
+
+    names(datasets.imputed) = names(imputation.methods)
+
+    crossValidationForImputation(datasets.imputed, list(model), ncv.folds)
+
+    flog.info(paste(rep("*", 10), collapse = ""))
+
+    #browser()
+
+    flog.info("Grid search: classifiers and imputation methods")
+
+    models = list()
+
     for (model.name in classifiers.list)
     {
         flog.info(paste("Model:", model.name))
@@ -585,17 +697,22 @@ for (dataset.name in datasets.names)
         model = readRDS(file.path("models",
                                   paste0(dataset.name, "-", model.name, ".rds")))
 
+        models = merge(models, list(model))
+
         preproc.scheme = attr(model, "preproc.scheme")
         dataset.obscured.preprocessed = stats::predict(preproc.scheme,
                                                        dataset.obscured)
 
-        for (func in list(imputation.median.mode,
-                          imputation.random.forest,
-                          imputation.mice))
-        {
-            func(dataset.obscured.preprocessed)
-        }
+        # TODO: fix crossValidationForImputation datasets -> imputation
+
+        #datasets.imputed = lapply(names(imputation.methods), function(name){
+        #    flog.info(paste("Imputation:", name))
+        #    imputation.methods[[name]](dataset.obscured.preprocessed) })
     }
+
+    #crossValidationForImputation(datasets.imputed, models, ncv.folds)
+
+    flog.info(paste(rep("*", 25), collapse = ""))
 }
 
 flog.info(paste(rep("*", 50), collapse = ""))
