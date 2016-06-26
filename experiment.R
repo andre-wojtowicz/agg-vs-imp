@@ -60,6 +60,8 @@ library(lazyeval)
 library(caret)
 library(e1071)
 # caret - classifiers
+library(RWeka) # OneR
+library(rJava)
 library(kernlab) # SVM
 library(C50) # C5.0
 # caret - feature selection
@@ -168,13 +170,13 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
 
     colnames(dataset)[ncol(dataset)] = "Class"
 
-    preproc.scheme = preProcess(dataset,
-                                method = ncv.preprocessing.methods)
-    dataset = predict(preproc.scheme, dataset)
+    preproc.scheme = caret::preProcess(dataset,
+                                       method = ncv.preprocessing.methods)
+    dataset = stats::predict(preproc.scheme, dataset)
 
 
-    idx.outer = createFolds(dataset$Class,
-                            k = no.folds)
+    idx.outer = caret::createFolds(dataset$Class,
+                                   k = no.folds)
 
     folds.performance = data.frame()
 
@@ -185,12 +187,12 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
         folds.inner = idx.outer[setdiff(1:no.folds, i)]
         dataset.inner = dataset[as.numeric(unlist(folds.inner)), ]
 
-        idx.inner = createFolds(dataset.inner$Class,
-                                k = no.folds)
+        idx.inner = caret::createFolds(dataset.inner$Class,
+                                       k = no.folds)
 
-        train.control = trainControl(method = "cv",
-                                     index = idx.inner,
-                                     allowParallel = TRUE)
+        train.control = caret::trainControl(method = "cv",
+                                            index = idx.inner,
+                                            allowParallel = TRUE)
 
         training.arguments = merge(
             list(form      = Class ~ .,
@@ -202,13 +204,13 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
                  maximize  = ncv.performance.maximize),
             model.attrs)
 
-        model = suppressWarnings(do.call(train, training.arguments))
+        model = suppressWarnings(do.call(caret::train, training.arguments))
 
         folds.holdout = idx.outer[[i]]
         dataset.holdout = dataset[folds.holdout, ]
 
-        predictions = predict(model, dataset.holdout)
-        cf.matrix = confusionMatrix(predictions, dataset.holdout$Class)
+        predictions = stats::predict(model, dataset.holdout)
+        cf.matrix = caret::confusionMatrix(predictions, dataset.holdout$Class)
 
         folds.performance = rbind(folds.performance,
                                   data.frame(t(c(cf.matrix$overall,
@@ -217,7 +219,7 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
 
     flog.info("Training final model")
 
-    train.control = trainControl(method = "cv", index = idx.outer)
+    train.control = caret::trainControl(method = "cv", index = idx.outer)
 
     training.arguments = merge(
         list(form      = Class ~ .,
@@ -229,25 +231,30 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
              maximize  = ncv.performance.maximize),
         model.attrs)
 
-    model = suppressWarnings(do.call(train, training.arguments))
+    model = suppressWarnings(do.call(caret::train, training.arguments))
 
     attr(model, "folds.performance") = folds.performance
     attr(model, "preproc.scheme")    = preproc.scheme
 
-    flog.info(paste0("Estimated performance of ", class(model$finalModel)[1],
-                     " - ", ncv.performance.selector, ": ",
+    flog.info(paste0("Estimated performance - ", ncv.performance.selector, ": ",
                      round(mean(folds.performance[[ncv.performance.selector]]), 3)))
 
     used.predictors = set()
 
-    predictors.names = tryCatch(
-        predictors(model),
-        error = function(e) { model$coefnames })
-
-    for (column.name in colnames(dataset)[1:(ncol(dataset) - 1)])
+    if (model.name == "OneR")
     {
-        if (any(grepl(paste0("^", column.name), predictors.names)))
-            used.predictors = used.predictors | set(column.name)
+        used.predictors = set(strsplit(model$finalModel$classifier$toString(),
+                                       ":")[[1]][1])
+    } else {
+        predictors.names = tryCatch(
+            caret::predictors(model),
+            error = function(e) { model$coefnames })
+
+        for (column.name in colnames(dataset)[1:(ncol(dataset) - 1)])
+        {
+            if (any(grepl(paste0("^", column.name), predictors.names)))
+                used.predictors = used.predictors | set(column.name)
+        }
     }
 
     attr(model, "used.predictors") = used.predictors
@@ -257,11 +264,15 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
     return(model)
 }
 
+classifiers.baseline = "OneR"
+
 classifiers.list = c("svmLinear",
                      "C5.0",
                      "knn")
 
 classifiers.feature.selection.method = list(
+
+    OneR = NULL, # internal
 
     svmLinear = "rfFuncs",
 
@@ -271,6 +282,8 @@ classifiers.feature.selection.method = list(
 )
 
 classifiers.tuning.params = list(
+
+    OneR = NULL,
 
     svmLinear = expand.grid(C = 10 ^ seq(-5,2)),
 
@@ -282,6 +295,8 @@ classifiers.tuning.params = list(
 )
 
 classifiers.basic.attributes = list(
+
+    OneR = NULL,
 
     svmLinear = list(scaled = FALSE),
 
@@ -299,14 +314,25 @@ for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
 
-    for (model.name in classifiers.list)
+    for (model.name in c(classifiers.baseline, classifiers.list))
     {
         flog.info(paste("Classifier:", model.name))
 
         if (file.exists(file.path("models",
                                   paste0(dataset.name, "-", model.name, ".rds"))))
         {
-            flog.info("Model exists, skipping")
+            flog.info("Model exists, skipping leraning")
+
+            model = readRDS(file.path("models",
+                                      paste0(dataset.name, "-", model.name, ".rds")))
+
+            folds.performance = attr(model, "folds.performance")
+
+            flog.info(paste0("Estimated performance - ", ncv.performance.selector, ": ",
+                             round(mean(folds.performance[[ncv.performance.selector]]), 3)))
+
+            flog.info(paste(rep("*", 10), collapse = ""))
+
             next
         }
 
@@ -354,6 +380,11 @@ for (dataset.name in datasets.names)
         model = nestedCrossValidation(dataset.classification, ncv.folds,
                                       model.name, model.grid, model.attrs)
 
+        if (model.name == "OneR")
+        {
+            .jcache(model$finalModel$classifier)
+        }
+
         saveRDS(model, file.path("models",
                                  paste0(dataset.name, "-", model.name, ".rds")))
 
@@ -380,7 +411,7 @@ for (dataset.name in datasets.names)
 
     dataset.used.predictors = set()
 
-    for (model.name in classifiers.list)
+    for (model.name in c(classifiers.baseline, classifiers.list))
     {
         model = readRDS(file.path("models",
                                   paste0(dataset.name, "-", model.name, ".rds")))
@@ -410,9 +441,9 @@ for (dataset.name in datasets.names)
     {
         dataset.obscured = rbind(dataset.obscured, dataset[1:(nrow(dataset)/3), ])
 
-        dataset.nas.idx = createFolds(dataset[(nrow(dataset)/3 + 1):nrow(dataset),
-                                              ncol(dataset)],
-                                      k = length(dataset.used.predictors) - 1)
+        dataset.nas.idx = caret::createFolds(dataset[(nrow(dataset)/3 + 1):nrow(dataset),
+                                                     ncol(dataset)],
+                                             k = length(dataset.used.predictors) - 1)
 
         for (i in 1:(length(dataset.used.predictors) - 1))
         {
@@ -459,7 +490,7 @@ for (dataset.name in datasets.names)
     dataset.obscured =
         readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
 
-    for (model.name in classifiers.list)
+    for (model.name in c(classifiers.baseline, classifiers.list))
     {
         flog.info(paste("Model:", model.name))
 
@@ -467,16 +498,16 @@ for (dataset.name in datasets.names)
                                   paste0(dataset.name, "-", model.name, ".rds")))
 
         preproc.scheme = attr(model, "preproc.scheme")
-        dataset.obscured.preprocessed = predict(preproc.scheme, dataset.obscured)
+        dataset.obscured.preprocessed = stats::predict(preproc.scheme, dataset.obscured)
 
         dataset.no.nas =
             dataset.obscured.preprocessed[which(rowSums(is.na(
-                dataset.obscured.preprocessed[,
+                dataset.obscured.preprocessed[
                     as.character(attr(model, "used.predictors"))])) == 0), ]
 
-        predictions = predict(model, dataset.no.nas, na.action = NULL)
-        cf.matrix = confusionMatrix(predictions,
-                                    dataset.no.nas[, ncol(dataset.no.nas)])
+        predictions = stats::predict(model, dataset.no.nas, na.action = NULL)
+        cf.matrix = caret::confusionMatrix(predictions,
+                                           dataset.no.nas[, ncol(dataset.no.nas)])
 
         flog.info(paste("Accuracy:    ", round(cf.matrix$overall["Accuracy"], 3)))
         flog.info(paste("Sensitivity: ", round(cf.matrix$byClass["Sensitivity"], 3)))
@@ -507,35 +538,37 @@ imputation.median.mode = function(data)
                                             == c("ordered", "factor"))})
                     == TRUE))
 
-    impute(data,
-           target = tail(colnames(data), 1),
-           classes = list(numeric = imputeMedian(),
-                          integer   = imputeMedian(),
-                          factor    = imputeMode()),
-           cols = sapply(colnames.ord.factor,
-                         function(x){ x = imputeMode() },
-                         simplify = F))$data
+    mlr::impute(data,
+                target  = tail(colnames(data), 1),
+                classes = list(numeric   = mlr::imputeMedian(),
+                               integer   = mlr::imputeMedian(),
+                               factor    = mlr::imputeMode()),
+                cols    = sapply(colnames.ord.factor,
+                                 function(x){ x = mlr::imputeMode() },
+                                 simplify = F))$data
 }
 
 imputation.random.forest = function(data)
 {
     flog.info("Imputation: random forest")
 
-    suppressWarnings(capture.output(data.new <- missForest(data[, -ncol(data)])$ximp))
+    suppressWarnings(
+        capture.output(
+            data.new <- missForest::missForest(data[, -ncol(data)])$ximp
+    ))
 
-    cbind(data.new,
-          data[, ncol(data)])
+    cbind(data.new, data[, ncol(data)])
 }
 
 imputation.mice = function(data)
 {
     flog.info("Imputation: multivariate imputation by chained equations")
 
-    cbind(complete(mice(data[, -ncol(data)],
-                        m = 1, maxit = 10,
-                        printFlag = FALSE),
-                   action = 1),
-          data[, ncol(data)])
+    cbind(mice::complete(mice::mice(data[, -ncol(data)],
+                                    m = 1, maxit = 10,
+                                    printFlag = FALSE),
+                               action = 1),
+                data[, ncol(data)])
 }
 
 for (dataset.name in datasets.names)
@@ -553,7 +586,8 @@ for (dataset.name in datasets.names)
                                   paste0(dataset.name, "-", model.name, ".rds")))
 
         preproc.scheme = attr(model, "preproc.scheme")
-        dataset.obscured.preprocessed = predict(preproc.scheme, dataset.obscured)
+        dataset.obscured.preprocessed = stats::predict(preproc.scheme,
+                                                       dataset.obscured)
 
         for (func in list(imputation.median.mode,
                           imputation.random.forest,
