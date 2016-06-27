@@ -72,6 +72,8 @@ library(rpart)
 library(mlr) # median & mode
 library(missForest) # random forest
 library(mice) # chained equations
+# optimization
+library(optimx)
 
 LOGGER_LEVEL = futile.logger::INFO
 flog.threshold(LOGGER_LEVEL)
@@ -161,7 +163,7 @@ flog.info("Step 2: learn classifiers")
 # https://topepo.github.io/caret/modelList.html
 
 ncv.folds                  = 10
-ncv.preprocessing.methods  = c("center", "scale")
+ncv.preprocessing.methods  = c("range")
 ncv.performance.selector   = "Accuracy"
 ncv.performance.maximize   = TRUE
 
@@ -221,7 +223,9 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
 
     flog.info("Training final model")
 
-    train.control = caret::trainControl(method = "cv", index = idx.outer)
+    train.control = caret::trainControl(method = "cv",
+                                        index = idx.outer,
+                                        classProbs = TRUE)
 
     training.arguments = merge(
         list(form      = Class ~ .,
@@ -233,7 +237,8 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
              maximize  = ncv.performance.maximize),
         model.attrs)
 
-    model = suppressWarnings(do.call(caret::train, training.arguments))
+    suppressWarnings(
+        capture.output(model <- do.call(caret::train, training.arguments)))
 
     attr(model, "folds.performance") = folds.performance
     attr(model, "preproc.scheme")    = preproc.scheme
@@ -779,7 +784,31 @@ flog.info(paste(rep("*", 50), collapse = ""))
 
 flog.info("Step 6: choose best aggregation")
 
+for (dataset.name in datasets.names)
+{
+    flog.info(paste("Dataset:", dataset.name))
 
+    dataset.obscured =
+        readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+
+    for (model.name in classifiers.list)
+    {
+        flog.info(paste("Model:", model.name))
+
+        model = readRDS(file.path("models",
+                                  paste0(dataset.name, "-", model.name, ".rds")))
+
+        preproc.scheme = attr(model, "preproc.scheme")
+        dataset.obscured.preprocessed = stats::predict(preproc.scheme, dataset.obscured)
+
+        #browser()
+        #stats::predict(model, dataset.obscured.preprocessed, type = "prob")
+
+        flog.info(paste(rep("*", 10), collapse = ""))
+    }
+
+    flog.info(paste(rep("*", 25), collapse = ""))
+}
 
 flog.info(paste(rep("*", 50), collapse = ""))
 
