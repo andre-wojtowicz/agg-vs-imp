@@ -11,9 +11,9 @@
 #   K3 - kNN
 #
 # Imputation:
-#   I1 - median
-#   I2 - kNN
-#   I3 - SVD
+#   I1 - median & mode
+#   I2 - random forest
+#   I3 - chained equations
 #
 # Agregation operators:
 #   A1 - ...
@@ -80,7 +80,9 @@ flog.threshold(LOGGER_LEVEL)
 
 flog.info("Step 1: divide data")
 
-datasets.names = c("bank-marketing", "magic", "wine-quality")
+datasets.names = c("bank-marketing",
+                   "magic",
+                   "wine-quality")
 datasets.size.feature.selection = 150         # TODO: 250
 datasets.size.classification    = 300         #       750
 datasets.size.obscuration       = 300         #       750
@@ -575,12 +577,12 @@ crossValidationForImputation = function(datasets, models, no.folds)
 {
     set.seed(SEED)
 
-    idx.cv = caret::createFolds(1:nrow(datasets[[1]]),
+    idx.cv = caret::createFolds(1:nrow(datasets[[1]][[1]]),
                                 k = no.folds)
 
     which.function = ifelse(ncv.performance.maximize, which.max, which.min)
 
-    params.grid = expand.grid(1:length(datasets), 1:length(models))
+    params.grid = expand.grid(1:length(datasets[[1]]), 1:length(models))
 
     folds.performances = data.frame()
 
@@ -593,7 +595,7 @@ crossValidationForImputation = function(datasets, models, no.folds)
 
         perf.measures = apply(params.grid, 1,
               function(ids) {
-                    dataset.train = datasets[[ids[1]]][unname(unlist(idx.train)), ]
+                    dataset.train = datasets[[ids[2]]][[ids[1]]][unname(unlist(idx.train)), ]
                     model         = models[[ids[2]]]
 
                     predictions = stats::predict(model, dataset.train)
@@ -605,7 +607,7 @@ crossValidationForImputation = function(datasets, models, no.folds)
 
         best.id = which.function(perf.measures)
 
-        dataset.test = datasets[[params.grid[best.id, 1]]][unname(unlist(idx.test)), ]
+        dataset.test = datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]][unname(unlist(idx.test)), ]
         model        = models[[params.grid[best.id, 2]]]
 
         predictions = stats::predict(model, dataset.test)
@@ -613,7 +615,7 @@ crossValidationForImputation = function(datasets, models, no.folds)
             caret::confusionMatrix(predictions,
                                    dataset.test[, ncol(dataset.test)])
 
-        folds.performances = rbind(folds.performance,
+        folds.performances = rbind(folds.performances,
                                    data.frame(t(c(cf.matrix$overall,
                                                   cf.matrix$byClass))))
 
@@ -623,7 +625,7 @@ crossValidationForImputation = function(datasets, models, no.folds)
 
     perf.measures = apply(params.grid, 1,
               function(ids) {
-                  dataset = datasets[[ids[1]]]
+                  dataset = datasets[[ids[2]]][[ids[1]]]
                   model   = models[[ids[2]]]
 
                   predictions = stats::predict(model, dataset)
@@ -634,14 +636,19 @@ crossValidationForImputation = function(datasets, models, no.folds)
 
     best.id = which.function(perf.measures)
 
-    dataset      = datasets[[params.grid[best.id, 1]]]
+    dataset      = datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]]
     model        = models[[params.grid[best.id, 2]]]
 
-    flog.info(paste("Choosed classifier:", model$method))
     if (length(models) > 1)
     {
-        flog.info(paste("Choosed imputation:", names(datasets)[best.id]))
+        flog.info(paste("Choosed classifier:", model$method))
     }
+
+    choosed.imputation.name =
+        names(datasets[[params.grid[best.id, 2]]])[params.grid[best.id, 1]]
+
+    flog.info(paste("Choosed imputation:", choosed.imputation.name))
+
     flog.info(paste0("Estimated ", ncv.performance.selector, ":    ",
                      round(mean(folds.performances[[ncv.performance.selector]]), 3)))
     flog.info(paste0("Estimated Sensitivity: ",
@@ -649,8 +656,10 @@ crossValidationForImputation = function(datasets, models, no.folds)
     flog.info(paste0("Estimated Specificity: ",
                      round(mean(folds.performances[["Specificity"]]), 3)))
 
-    return(list("model"      = model$method,
-                "imputation" = names(datasets)[best.id]))
+    return(list("model"              = model,
+                "imputation.name"    = choosed.imputation.name,
+                "imputation.dataset" = dataset,
+                "folds.performances" = folds.performances))
 }
 
 for (dataset.name in datasets.names)
@@ -664,53 +673,102 @@ for (dataset.name in datasets.names)
                               "random forest"     = imputation.random.forest,
                               "chained equations" = imputation.mice)
 
-
     flog.info(paste("Baseline model:", classifiers.baseline))
 
-    model = readRDS(file.path("models",
-                              paste0(dataset.name, "-", classifiers.baseline, ".rds")))
+    baseline.model.path = file.path("models",
+                                    paste0(dataset.name, "-imputation-baseline.rds"))
 
-    preproc.scheme = attr(model, "preproc.scheme")
-    dataset.obscured.preprocessed = stats::predict(preproc.scheme,
-                                                   dataset.obscured)
-
-    datasets.imputed = lapply(names(imputation.methods), function(name){
-        flog.info(paste("Imputation:", name))
-        imputation.methods[[name]](dataset.obscured.preprocessed) })
-
-    names(datasets.imputed) = names(imputation.methods)
-
-    crossValidationForImputation(datasets.imputed, list(model), ncv.folds)
-
-    flog.info(paste(rep("*", 10), collapse = ""))
-
-    #browser()
-
-    flog.info("Grid search: classifiers and imputation methods")
-
-    models = list()
-
-    for (model.name in classifiers.list)
+    if (!file.exists(baseline.model.path))
     {
-        flog.info(paste("Model:", model.name))
-
         model = readRDS(file.path("models",
-                                  paste0(dataset.name, "-", model.name, ".rds")))
-
-        models = merge(models, list(model))
+                                  paste0(dataset.name, "-",
+                                         classifiers.baseline, ".rds")))
 
         preproc.scheme = attr(model, "preproc.scheme")
         dataset.obscured.preprocessed = stats::predict(preproc.scheme,
                                                        dataset.obscured)
 
-        # TODO: fix crossValidationForImputation datasets -> imputation
+        datasets.imputed = list(lapply(names(imputation.methods), function(name){
+            flog.info(paste("Imputation:", name))
+            set.seed(SEED)
+            imputation.methods[[name]](dataset.obscured.preprocessed) }))
 
-        #datasets.imputed = lapply(names(imputation.methods), function(name){
-        #    flog.info(paste("Imputation:", name))
-        #    imputation.methods[[name]](dataset.obscured.preprocessed) })
+        names(datasets.imputed[[1]]) = names(imputation.methods)
+
+        baseline.model.with.imputation =
+            crossValidationForImputation(datasets.imputed, list(model), ncv.folds)
+
+        saveRDS(baseline.model.with.imputation, baseline.model.path)
+
+    } else {
+        flog.info("Baseline model exists, skipping leraning")
+
+        baseline.model.with.imputation = readRDS(baseline.model.path)
+
+        folds.performances = baseline.model.with.imputation$folds.performances
+
+        flog.info(paste0("Estimated ", ncv.performance.selector, ":    ",
+                         round(mean(folds.performances[[ncv.performance.selector]]), 3)))
+        flog.info(paste0("Estimated Sensitivity: ",
+                         round(mean(folds.performances[["Sensitivity"]]), 3)))
+        flog.info(paste0("Estimated Specificity: ",
+                         round(mean(folds.performances[["Specificity"]]), 3)))
     }
 
-    #crossValidationForImputation(datasets.imputed, models, ncv.folds)
+    flog.info(paste(rep("*", 10), collapse = ""))
+
+    flog.info("Grid search: classifiers and imputation methods")
+
+    classifier.model.path = file.path("models",
+                                    paste0(dataset.name, "-imputation-classifier.rds"))
+
+    if (!file.exists(classifier.model.path))
+    {
+        models = list()
+        datasets.imputed = list()
+
+        for (model.name in classifiers.list)
+        {
+            flog.info(paste("Model:", model.name))
+
+            model = readRDS(file.path("models",
+                                      paste0(dataset.name, "-", model.name, ".rds")))
+
+            models = merge(models, list(model))
+
+            preproc.scheme = attr(model, "preproc.scheme")
+            dataset.obscured.preprocessed = stats::predict(preproc.scheme,
+                                                           dataset.obscured)
+
+            model.datasets.imputed = lapply(names(imputation.methods), function(name){
+                flog.info(paste("Imputation:", name))
+                set.seed(SEED)
+                imputation.methods[[name]](dataset.obscured.preprocessed) })
+
+            names(model.datasets.imputed) = names(imputation.methods)
+
+            datasets.imputed[[model.name]] = model.datasets.imputed
+        }
+
+        classifier.model.with.imputation =
+            crossValidationForImputation(datasets.imputed, models, ncv.folds)
+
+        saveRDS(classifier.model.with.imputation, classifier.model.path)
+
+    } else {
+        flog.info("Classifier model exists, skipping leraning")
+
+        classifier.model.with.imputation = readRDS(classifier.model.path)
+
+        folds.performances = classifier.model.with.imputation$folds.performances
+
+        flog.info(paste0("Estimated ", ncv.performance.selector, ":    ",
+                         round(mean(folds.performances[[ncv.performance.selector]]), 3)))
+        flog.info(paste0("Estimated Sensitivity: ",
+                         round(mean(folds.performances[["Sensitivity"]]), 3)))
+        flog.info(paste0("Estimated Specificity: ",
+                         round(mean(folds.performances[["Specificity"]]), 3)))
+    }
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }
