@@ -791,6 +791,11 @@ for (dataset.name in datasets.names)
     dataset.obscured =
         readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
 
+    dataset.interval.predictions =
+        data.frame(matrix(ncol = 2*length(classifiers.list),
+                          nrow = nrow(dataset.obscured),
+                          data = 0))
+
     for (model.name in classifiers.list)
     {
         flog.info(paste("Model:", model.name))
@@ -798,11 +803,161 @@ for (dataset.name in datasets.names)
         model = readRDS(file.path("models",
                                   paste0(dataset.name, "-", model.name, ".rds")))
 
-        preproc.scheme = attr(model, "preproc.scheme")
+        colnames.id = 2 * which(classifiers.list == model.name)
+        colnames(dataset.interval.predictions)[c(colnames.id - 1, colnames.id)] =
+                paste0(model.name, c(".lower", ".upper"))
+
+        used.predictors = attr(model, "used.predictors")
+        preproc.scheme  = attr(model, "preproc.scheme")
+
         dataset.obscured.preprocessed = stats::predict(preproc.scheme, dataset.obscured)
 
-        #browser()
-        #stats::predict(model, dataset.obscured.preprocessed, type = "prob")
+        for (i in 1:nrow(dataset.obscured.preprocessed))
+        {
+            case.predictors.all =
+                dataset.obscured.preprocessed[i, -ncol(dataset.obscured.preprocessed)]
+            case.class =
+                dataset.obscured.preprocessed[i,  ncol(dataset.obscured.preprocessed)]
+
+            case.predictors.used = case.predictors.all[, as.character(used.predictors)]
+
+            if (all(!is.na(case.predictors.used)))
+            {
+                predicted.value = stats::predict(model, case.predictors.all,
+                                                 type = "prob", na.action = NULL)[1, 1]
+
+                dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
+                    predicted.value
+
+            } else {
+                features.factors =
+                    names(which(sapply(colnames(case.predictors.used),
+                                       function(x){ any(class(case.predictors.used[[x]])
+                                                        == c("ordered", "factor"))})
+                                == TRUE))
+
+                features.factors.nas =
+                    features.factors[is.na(case.predictors.used[features.factors])]
+
+                features.numeric =
+                    colnames(case.predictors.used)[!colnames(case.predictors.used)
+                                                   %in% features.factors]
+
+                features.numeric.nas =
+                    features.numeric[is.na(case.predictors.used[features.numeric])]
+
+                if (length(features.factors.nas) > 0)
+                {
+                    factors.configs =
+                        expand.grid(sapply(features.factors.nas,
+                                           function(x){levels(case.predictors.used[[x]])},
+                                           simplify = FALSE))
+
+                    colnames(factors.configs) = features.factors.nas
+
+                    if (length(features.numeric.nas) == 0)
+                    {
+                        # perform factor-only optimization
+
+                        next # TODO : remove
+
+                        predicted.values =
+                            sapply(1:nrow(factors.configs), function(j)
+                            {
+                                case.config = case.predictors.all # copy
+
+                                for (k in 1:ncol(factors.configs))
+                                {
+                                    case.config[[colnames(factors.configs)[k]]] =
+                                        factors.configs[j, k]
+                                }
+
+                                stats::predict(model, case.config,
+                                               type = "prob", na.action = NULL)[1, 1]
+                            })
+
+                        dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
+                            c(min(predicted.values), max(predicted.values))
+
+                    } else {
+                        # perform factor-numeric optimization
+                    }
+
+                    # TODO: add numeric brute-force optimization for C5.0 and knn
+
+                } else {
+                    # perform numeric-only optimization
+
+                    targetOptFunc = function(x)
+                    {
+                        case.config = case.predictors.all # copy
+
+                        for (j in 1:length(features.numeric.nas))
+                        {
+                            case.config[[features.numeric.nas[j]]] = x[j]
+                        }
+
+                        stats::predict(model, case.config,
+                                       type = "prob", na.action = NULL)[1, 1]
+                    }
+
+                    start.values = rep(0.5, length(features.numeric.nas))
+                    lower.values = rep(0  , length(features.numeric.nas))
+                    upper.values = rep(1  , length(features.numeric.nas))
+
+                    # L-BFGS-B
+                    # nlminb
+                    # spg
+                    # bobyqa
+
+                    opt.objs = t(sapply(c(FALSE, TRUE), function(x)
+                    {
+                        capture.output(
+                            opt.obj <-
+                                optimx(par     = start.values,
+                                       fn      = targetOptFunc,
+                                       method  = "nlminb",
+                                       lower   = lower.values,
+                                       upper   = upper.values,
+                                       control = list(kkt           = FALSE,
+                                                      maximize      = x,
+                                                      save.failures = TRUE,
+                                                      maxit         = 2500)))
+                        opt.obj
+                    }))
+
+                    opt.objs = data.frame(opt.objs)
+
+                    if (any(unlist(opt.objs$convcode) != 0))
+                    {
+                        flog.error(paste("Case:", i))
+                        flog.warn(paste("Numeric optimization: convcodes",
+                                         "not equal to 0"))
+                    }
+
+                    opt.values = unlist(opt.objs$value)
+
+                    if (any(is.na(opt.values)))
+                    {
+                        flog.error(paste("Case:", i))
+                        flog.error(paste("Numeric optimization: some values",
+                                         "equal to NA"))
+                    }
+
+                    dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
+                        opt.values
+                }
+
+                vals = dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)]
+
+
+                if (vals[[1]] > vals[[2]])
+                {
+                    flog.error(paste("Case:", i))
+                    flog.error("Lower bound greater than upper bound")
+                }
+            }
+        }
 
         flog.info(paste(rep("*", 10), collapse = ""))
     }
