@@ -25,8 +25,8 @@
 #   4. Calculate accuracy, sensitivity, specificity and decisiveness for
 #      classifiers Kj on Di^2
 #   5. Choose the best impuation on Di^2
-#   6. Choose the best aggregation operator on Di^2
-#      6.1 Use optimx to calculate intervals of Kj
+#   6b. Calculate inteval predictions on Di^2
+#   6a. Choose the best aggregation operator on inteval predictions
 #   7. Compare Kj with the best imputation and agregation operator
 #
 
@@ -329,7 +329,7 @@ for (dataset.name in datasets.names)
         if (file.exists(file.path("models",
                                   paste0(dataset.name, "-", model.name, ".rds"))))
         {
-            flog.info("Model exists, skipping leraning")
+            flog.info("Model exists, skipping learning")
 
             model = readRDS(file.path("models",
                                       paste0(dataset.name, "-", model.name, ".rds")))
@@ -707,7 +707,7 @@ for (dataset.name in datasets.names)
         saveRDS(baseline.model.with.imputation, baseline.model.path)
 
     } else {
-        flog.info("Baseline model exists, skipping leraning")
+        flog.info("Baseline model exists, skipping learning")
 
         baseline.model.with.imputation = readRDS(baseline.model.path)
 
@@ -762,7 +762,7 @@ for (dataset.name in datasets.names)
         saveRDS(classifier.model.with.imputation, classifier.model.path)
 
     } else {
-        flog.info("Classifier model exists, skipping leraning")
+        flog.info("Classifier model exists, skipping learning")
 
         classifier.model.with.imputation = readRDS(classifier.model.path)
 
@@ -781,9 +781,9 @@ for (dataset.name in datasets.names)
 
 flog.info(paste(rep("*", 50), collapse = ""))
 
-# ---- step-6-choose-best-aggregation ----
+# ---- step-6a-calculate-interval-predictions ----
 
-flog.info("Step 6: choose best aggregation")
+flog.info("Step 6a: calculate interval predictions")
 
 numeric.optimization.reps = 10
 numeric.bf.optimization.reps = 100
@@ -804,6 +804,14 @@ expand.grid.df = function(...) # https://stackoverflow.com/a/21911221
 for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
+
+    dataset.interval.path = file.path("datasets", paste0(dataset.name, "-interval.rds"))
+
+    if (file.exists(dataset.interval.path))
+    {
+        flog.info("Interval predictions exists, skipping calculations")
+        next
+    }
 
     dataset.obscured =
         readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
@@ -1165,15 +1173,29 @@ for (dataset.name in datasets.names)
             }
         }
 
-        # TODO: save dataset.interval.predictions
-
         flog.info(paste(rep("*", 10), collapse = ""))
     }
+
+    dataset.interval.predictions =
+        cbind(data.frame(obscure.level =
+                            sapply(1:nrow(dataset.obscured), function(x)
+                            {
+                              sum(is.na(dataset.obscured[x, ]))/(ncol(dataset.obscured) - 1)
+                            })),
+              dataset.interval.predictions)
+
+    saveRDS(dataset.interval.path, dataset.interval.predictions)
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }
 
 flog.info(paste(rep("*", 50), collapse = ""))
+
+# ---- step-6b-choose-best-aggregation ----
+
+flog.info("Step 6b: choose best aggregation")
+
+
 
 # ---- step-7-compare-results ----
 
