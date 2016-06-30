@@ -784,6 +784,8 @@ flog.info(paste(rep("*", 50), collapse = ""))
 
 flog.info("Step 6: choose best aggregation")
 
+numeric.optimization.reps = 10
+
 for (dataset.name in datasets.names)
 {
     flog.info(paste("Dataset:", dataset.name))
@@ -798,6 +800,8 @@ for (dataset.name in datasets.names)
 
     for (model.name in classifiers.list)
     {
+        set.seed(SEED)
+
         flog.info(paste("Model:", model.name))
 
         model = readRDS(file.path("models",
@@ -814,6 +818,8 @@ for (dataset.name in datasets.names)
 
         for (i in 1:nrow(dataset.obscured.preprocessed))
         {
+            flog.info(paste("Case:", i))
+
             case.predictors.all =
                 dataset.obscured.preprocessed[i, -ncol(dataset.obscured.preprocessed)]
             case.class =
@@ -888,64 +894,77 @@ for (dataset.name in datasets.names)
                 } else {
                     # perform numeric-only optimization
 
-                    targetOptFunc = function(x)
+                    if (model.name %in% c("C5.0", "knn"))
                     {
-                        case.config = case.predictors.all # copy
 
-                        for (j in 1:length(features.numeric.nas))
+                    } else {
+
+                        targetOptFunc = function(x)
                         {
-                            case.config[[features.numeric.nas[j]]] = x[j]
+                            case.config = case.predictors.all # copy
+
+                            for (j in 1:length(features.numeric.nas))
+                            {
+                                case.config[[features.numeric.nas[j]]] = x[j]
+                            }
+
+                            stats::predict(model, case.config,
+                                           type = "prob", na.action = NULL)[1, 1]
                         }
 
-                        stats::predict(model, case.config,
-                                       type = "prob", na.action = NULL)[1, 1]
+                        start.values =
+                            matrix(runif(numeric.optimization.reps *
+                                             length(features.numeric.nas), 0, 1),
+                                   ncol = length(features.numeric.nas))
+                        lower.values = rep(0  , length(features.numeric.nas))
+                        upper.values = rep(1  , length(features.numeric.nas))
+
+                        # L-BFGS-B
+                        # nlminb
+                        # spg
+                        # bobyqa
+
+                        minmax.vals =
+                            apply(start.values, 1, function(y)
+                            {
+                                opt.objs = t(sapply(c(FALSE, TRUE), function(x)
+                                {
+                                    capture.output(
+                                        opt.obj <-
+                                            optimx(par     = y,
+                                                   fn      = targetOptFunc,
+                                                   method  = "nlminb",
+                                                   lower   = lower.values,
+                                                   upper   = upper.values,
+                                                   control = list(kkt           = FALSE,
+                                                                  maximize      = x,
+                                                                  save.failures = TRUE,
+                                                                  maxit         = 2500)))
+                                    opt.obj
+                                }))
+
+                                opt.objs = data.frame(opt.objs)
+
+                                if (any(unlist(opt.objs$convcode) != 0))
+                                {
+                                    flog.warn(paste("Numeric optimization: convcodes",
+                                                     "not equal to 0"))
+                                }
+
+                                opt.values = unlist(opt.objs$value)
+
+                                if (any(is.na(opt.values)))
+                                {
+                                    flog.error(paste("Numeric optimization: some values",
+                                                     "equal to NA"))
+                                }
+
+                                opt.values
+                            })
+
+                        dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
+                            c(min(minmax.vals[1, ]), max(minmax.vals[2, ]))
                     }
-
-                    start.values = rep(0.5, length(features.numeric.nas))
-                    lower.values = rep(0  , length(features.numeric.nas))
-                    upper.values = rep(1  , length(features.numeric.nas))
-
-                    # L-BFGS-B
-                    # nlminb
-                    # spg
-                    # bobyqa
-
-                    opt.objs = t(sapply(c(FALSE, TRUE), function(x)
-                    {
-                        capture.output(
-                            opt.obj <-
-                                optimx(par     = start.values,
-                                       fn      = targetOptFunc,
-                                       method  = "nlminb",
-                                       lower   = lower.values,
-                                       upper   = upper.values,
-                                       control = list(kkt           = FALSE,
-                                                      maximize      = x,
-                                                      save.failures = TRUE,
-                                                      maxit         = 2500)))
-                        opt.obj
-                    }))
-
-                    opt.objs = data.frame(opt.objs)
-
-                    if (any(unlist(opt.objs$convcode) != 0))
-                    {
-                        flog.error(paste("Case:", i))
-                        flog.warn(paste("Numeric optimization: convcodes",
-                                         "not equal to 0"))
-                    }
-
-                    opt.values = unlist(opt.objs$value)
-
-                    if (any(is.na(opt.values)))
-                    {
-                        flog.error(paste("Case:", i))
-                        flog.error(paste("Numeric optimization: some values",
-                                         "equal to NA"))
-                    }
-
-                    dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
-                        opt.values
                 }
 
                 vals = dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)]
@@ -953,7 +972,6 @@ for (dataset.name in datasets.names)
 
                 if (vals[[1]] > vals[[2]])
                 {
-                    flog.error(paste("Case:", i))
                     flog.error("Lower bound greater than upper bound")
                 }
             }
