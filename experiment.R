@@ -76,8 +76,16 @@ library(mice) # chained equations
 # optimization
 library(optimx)
 
-LOGGER_LEVEL = futile.logger::INFO
+LOGGER_OUTPUT_FILE = "experiment.log"
+LOGGER_LEVEL       = futile.logger::INFO
 flog.threshold(LOGGER_LEVEL)
+
+if (file.exists(LOGGER_OUTPUT_FILE))
+{
+    file.remove(LOGGER_OUTPUT_FILE)
+}
+
+flog.appender(appender.tee(LOGGER_OUTPUT_FILE))
 
 # ---- step-1-divide-data ----
 

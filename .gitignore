@@ -17,6 +17,7 @@ vignettes/*.pdf
 .httr-oauth
 
 .Rproj.user
+.log
 
 models/
 datasets/*-classification.rds
