@@ -193,41 +193,46 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
 
     folds.performance = data.frame()
 
-    for (i in 1:no.folds)
+    if (!is.null(model.grid))
     {
-        flog.info(paste("Fold", i))
+        for (i in 1:no.folds)
+        {
+            flog.info(paste("Fold", i))
 
-        folds.inner = idx.outer[setdiff(1:no.folds, i)]
-        dataset.inner = dataset[as.numeric(unlist(folds.inner)), ]
+            folds.inner = idx.outer[setdiff(1:no.folds, i)]
+            dataset.inner = dataset[as.numeric(unlist(folds.inner)), ]
 
-        idx.inner = caret::createFolds(dataset.inner$Class,
-                                       k = no.folds)
+            idx.inner = caret::createFolds(dataset.inner$Class,
+                                           k = no.folds)
 
-        train.control = caret::trainControl(method = "cv",
-                                            index = idx.inner,
-                                            allowParallel = TRUE)
+            train.control = caret::trainControl(method = "cv",
+                                                index = idx.inner,
+                                                allowParallel = TRUE)
 
-        training.arguments = merge(
-            list(form      = Class ~ .,
-                 data      = dataset.inner,
-                 trControl = train.control,
-                 method    = model.name,
-                 tuneGrid  = model.grid,
-                 metric    = ncv.performance.selector,
-                 maximize  = ncv.performance.maximize),
-            model.attrs)
+            training.arguments = merge(
+                list(form      = Class ~ .,
+                     data      = dataset.inner,
+                     trControl = train.control,
+                     method    = model.name,
+                     tuneGrid  = model.grid,
+                     metric    = ncv.performance.selector,
+                     maximize  = ncv.performance.maximize),
+                model.attrs)
 
-        model = suppressWarnings(do.call(caret::train, training.arguments))
+            model = suppressWarnings(do.call(caret::train, training.arguments))
 
-        folds.holdout = idx.outer[[i]]
-        dataset.holdout = dataset[folds.holdout, ]
+            folds.holdout = idx.outer[[i]]
+            dataset.holdout = dataset[folds.holdout, ]
 
-        predictions = stats::predict(model, dataset.holdout)
-        cf.matrix = caret::confusionMatrix(predictions, dataset.holdout$Class)
+            predictions = stats::predict(model, dataset.holdout)
+            cf.matrix = caret::confusionMatrix(predictions, dataset.holdout$Class)
 
-        folds.performance = rbind(folds.performance,
-                                  data.frame(t(c(cf.matrix$overall,
-                                                 cf.matrix$byClass))))
+            folds.performance = rbind(folds.performance,
+                                      data.frame(t(c(cf.matrix$overall,
+                                                     cf.matrix$byClass))))
+        }
+    } else {
+        flog.info("No tuning grid, skipping nested CV")
     }
 
     flog.info("Training final model")
@@ -248,6 +253,11 @@ nestedCrossValidation = function(dataset, no.folds, model.name,
 
     suppressWarnings(
         capture.output(model <- do.call(caret::train, training.arguments)))
+
+    if (is.null(model.grid))
+    {
+        folds.performance = model$resample[ncv.performance.selector]
+    }
 
     attr(model, "folds.performance") = folds.performance
     attr(model, "preproc.scheme")    = preproc.scheme
