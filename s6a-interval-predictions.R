@@ -2,11 +2,11 @@
 
 source("init.R")
 
-setupLogger(LOGGER.OUTPUT.S6A.FILE)
+setup.logger(LOGGER.OUTPUT.S6A.FILE)
 
 flog.info("Step 6a: calculate interval predictions")
 
-for (dataset.name in datasets.names)
+for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
@@ -393,5 +393,3 @@ for (dataset.name in datasets.names)
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }
-
-flog.info(paste(rep("*", 50), collapse = ""))

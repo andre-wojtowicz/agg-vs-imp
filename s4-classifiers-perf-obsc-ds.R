@@ -2,23 +2,29 @@
 
 source("init.R")
 
-setupLogger(LOGGER.OUTPUT.S4.FILE)
+setup.logger(LOGGER.OUTPUT.S4.FILE)
 
 flog.info("Step 4: classifiers performance on obscured dataset")
 
-for (dataset.name in datasets.names)
+for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
-    dataset.obscured =
-        readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+    dataset.obscured.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURED)
 
-    for (model.name in c(classifiers.baseline, classifiers.list))
+    dataset.obscured = readRDS(dataset.obscured.file.path)
+
+    for (model.name in c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))
     {
-        flog.info(paste("Model:", model.name))
+        flog.info(paste("Classifier:", model.name))
 
-        model = readRDS(file.path("models",
-                                  paste0(dataset.name, "-", model.name, ".rds")))
+        model.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.LEARNED)
+
+        model = readRDS(model.file.path)
 
         preproc.scheme = attr(model, "preproc.scheme")
         dataset.obscured.preprocessed = stats::predict(preproc.scheme, dataset.obscured)

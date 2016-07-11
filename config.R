@@ -15,29 +15,42 @@ CHECKPOINT.QUICK.LOAD = TRUE
 
 # logging system
 
-LOGGER.OUTPUT.S1.FILE  = "s1.log"
-LOGGER.OUTPUT.S2.FILE  = "s2.log"
-LOGGER.OUTPUT.S3.FILE  = "s3.log"
-LOGGER.OUTPUT.S4.FILE  = "s4.log"
-LOGGER.OUTPUT.S5.FILE  = "s5.log"
-LOGGER.OUTPUT.S6A.FILE = "s6a.log"
-LOGGER.OUTPUT.S6B.FILE = "s6b.log"
-LOGGER.OUTPUT.S7.FILE  = "s7.log"
-LOGGER.LEVEL           = 6 # futile.logger::INFO
-LOGGER.APPEND          = FALSE
+LOGGER.OUTPUT.S1.FILE           = "s1.log"
+LOGGER.OUTPUT.S2.FILE           = "s2.log"
+LOGGER.OUTPUT.S3.FILE           = "s3.log"
+LOGGER.OUTPUT.S4.FILE           = "s4.log"
+LOGGER.OUTPUT.S5.FILE           = "s5.log"
+LOGGER.OUTPUT.S6A.FILE          = "s6a.log"
+LOGGER.OUTPUT.S6B.FILE          = "s6b.log"
+LOGGER.OUTPUT.S7.FILE           = "s7.log"
+LOGGER.LEVEL                    = 6 # futile.logger::INFO
+LOGGER.OVERWRITE.EXISTING.FILES = TRUE
 
 # datasets used in the experiment
 
-DATASETS.DIR                    = "datasets"
-DATASETS.NAMES                  = c("bank-marketing",
-                                    "magic",
-                                    "wine-quality")
-DATASETS.SIZE.FEATURE.SELECTION = 150 # TODO:
-DATASETS.SIZE.CLASSIFICATION    = 300 #  450
-DATASETS.SIZE.OBSCURATION       = 300 #  450
-DATASETS.SIZE.PER.CLASS         = (DATASETS.SIZE.FEATURE.SELECTION +
-                                   DATASETS.SIZE.CLASSIFICATION +
-                                   DATASETS.SIZE.OBSCURATION) / 2
+DATASETS.DIR                      = "datasets"
+DATASETS.NAME.PATTERN             = "DATASET-NAME"
+DATASETS.ORIGIN            =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, ".rds"))
+DATASETS.FEATURE.SELECTION =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-feature-selection.rds"))
+DATASETS.CLASSIFICATION    =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-classification.rds"))
+DATASETS.OBSCURATION       =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscuration.rds"))
+DATASETS.OBSCURED          =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscured.rds"))
+
+DATASETS.NAMES                    = c("bank-marketing",
+                                      "magic",
+                                      "wine-quality")
+DATASETS.SIZE.FEATURE.SELECTION   = 150 # TODO:
+DATASETS.SIZE.CLASSIFICATION      = 300 #  450
+DATASETS.SIZE.OBSCURATION         = 300 #  450
+DATASETS.SIZE.PER.CLASS           = (DATASETS.SIZE.FEATURE.SELECTION +
+                                     DATASETS.SIZE.CLASSIFICATION +
+                                     DATASETS.SIZE.OBSCURATION) / 2
+DATASETS.OVERWRITE.EXISTING.FILES = TRUE
 
 # nested cross-validation setup
 
@@ -52,12 +65,21 @@ NCV.PERFORMANCE.MAXIMIZE   = TRUE
 #   https://topepo.github.io/caret/bytag.html
 #   https://topepo.github.io/caret/modelList.html
 
-CLASSIFIERS.DIR      = "classifiers"
+CLASSIFIERS.DIR                      = "classifiers"
+CLASSIFIERS.NAME.PATTERN             = "CLASSIFIER-NAME"
+CLASSIFIERS.LEARNED =
+    file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
+                                      CLASSIFIERS.NAME.PATTERN, ".rds"))
+CLASSIFIERS.IMPUTATION.BASELINE =
+    file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-imputation-baseline.rds"))
+CLASSIFIERS.IMPUTATION.MODEL =
+    file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-imputation-model.rds"))
+CLASSIFIERS.OVERWRITE.EXISTING.FILES = TRUE
 
-CLASSIFIERS.BASELINE = "OneR"
-CLASSIFIERS.LIST     = c("svmLinear",
-                         "C5.0",
-                         "knn")
+CLASSIFIERS.BASELINE                 = "OneR"
+CLASSIFIERS.LIST                     = c("svmLinear",
+                                         "C5.0",
+                                         "knn")
 
 CLASSIFIERS.FEATURE.SELECTION.METHOD = list( # NULL means internal method
     svmLinear = "rfFuncs",

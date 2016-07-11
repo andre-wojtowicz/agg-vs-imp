@@ -2,25 +2,31 @@
 
 source("init.R")
 
-setupLogger(LOGGER.OUTPUT.S3.FILE)
+setup.logger(LOGGER.OUTPUT.S3.FILE)
 
 flog.info("Step 3: obscure datasets")
 
-for (dataset.name in datasets.names)
+for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
     set.seed(SEED)
 
-    dataset.obscuration =
-        readRDS(file.path("datasets", paste0(dataset.name, "-obscuration.rds")))
+    dataset.obscuration.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURATION)
+
+    dataset.obscuration = readRDS(dataset.obscuration.file.path)
 
     dataset.used.predictors = set()
 
-    for (model.name in c(classifiers.baseline, classifiers.list))
+    for (model.name in c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))
     {
-        model = readRDS(file.path("models",
-                                  paste0(dataset.name, "-", model.name, ".rds")))
+        model.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.LEARNED)
+
+        model = readRDS(model.file.path)
 
         dataset.used.predictors = dataset.used.predictors | attr(model, "used.predictors")
     }
@@ -78,7 +84,8 @@ for (dataset.name in datasets.names)
         }
     }
 
-    saveRDS(dataset.obscured,
-            file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+    dataset.obscured.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURED)
 
+    saveRDS(dataset.obscured, dataset.obscured.file.path)
 }

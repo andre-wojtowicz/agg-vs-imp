@@ -3,33 +3,38 @@
 source("init.R")
 source("methods-imputation.R")
 
-setupLogger(LOGGER.OUTPUT.S5.FILE)
+setup.logger(LOGGER.OUTPUT.S5.FILE)
 
 flog.info("Step 5: choose best imputation")
 
-for (dataset.name in datasets.names)
+for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
     dataset.obscured =
-        readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURED)
 
-    imputation.methods = list("median/mode"       = imputationMedianMode,
-                              "random forest"     = imputationRandomForest,
-                              "chained equations" = imputationMice)
+    dataset.obscured = readRDS(dataset.obscured)
 
-    flog.info(paste("Baseline model:", classifiers.baseline))
+    imputation.methods = list("median/mode"       = imputation.median.mode,
+                              "random forest"     = imputation.random.forest,
+                              "chained equations" = imputation.mice)
 
-    baseline.model.path = file.path("models",
-                                    paste0(dataset.name, "-imputation-baseline.rds"))
+    flog.info(paste("Baseline model:", CLASSIFIERS.BASELINE))
 
-    if (!file.exists(baseline.model.path))
+    baseline.imputation.model.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, CLASSIFIERS.IMPUTATION.BASELINE)
+
+    if (!file.exists(baseline.imputation.model.file.path))
     {
-        model = readRDS(file.path("models",
-                                  paste0(dataset.name, "-",
-                                         classifiers.baseline, ".rds")))
+        baseline.model.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, CLASSIFIERS.BASELINE),
+                            CLASSIFIERS.LEARNED)
 
-        preproc.scheme = attr(model, "preproc.scheme")
+        baseline.model = readRDS(baseline.model.file.path)
+
+        preproc.scheme = attr(baseline.model, "preproc.scheme")
         dataset.obscured.preprocessed = stats::predict(preproc.scheme,
                                                        dataset.obscured)
 
@@ -40,20 +45,22 @@ for (dataset.name in datasets.names)
 
         names(datasets.imputed[[1]]) = names(imputation.methods)
 
-        baseline.model.with.imputation =
-            crossValidationForImputation(datasets.imputed, list(model), ncv.folds)
+        baseline.imputation.model =
+            cross.validation.for.imputation(datasets.imputed,
+                                            list(baseline.model),
+                                            NCV.FOLDS)
 
-        saveRDS(baseline.model.with.imputation, baseline.model.path)
+        saveRDS(baseline.imputation.model, baseline.imputation.model.file.path)
 
     } else {
         flog.info("Baseline model exists, skipping learning")
 
-        baseline.model.with.imputation = readRDS(baseline.model.path)
+        baseline.imputation.model = readRDS(baseline.imputation.model.file.path)
 
-        folds.performances = baseline.model.with.imputation$folds.performances
+        folds.performances = baseline.imputation.model$folds.performances
 
-        flog.info(paste0("Estimated ", ncv.performance.selector, ":    ",
-                         round(mean(folds.performances[[ncv.performance.selector]]), 3)))
+        flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ":    ",
+                         round(mean(folds.performances[[NCV.PERFORMANCE.SELECTOR]]), 3)))
         flog.info(paste0("Estimated Sensitivity: ",
                          round(mean(folds.performances[["Sensitivity"]]), 3)))
         flog.info(paste0("Estimated Specificity: ",
@@ -64,20 +71,24 @@ for (dataset.name in datasets.names)
 
     flog.info("Grid search: classifiers and imputation methods")
 
-    classifier.model.path = file.path("models",
-                                      paste0(dataset.name, "-imputation-classifier.rds"))
+    classifier.imputation.model.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, CLASSIFIERS.IMPUTATION.MODEL)
 
-    if (!file.exists(classifier.model.path))
+    if (!file.exists(classifier.imputation.model.file.path))
     {
         models = list()
         datasets.imputed = list()
 
-        for (model.name in classifiers.list)
+        for (model.name in CLASSIFIERS.LIST)
         {
             flog.info(paste("Model:", model.name))
 
-            model = readRDS(file.path("models",
-                                      paste0(dataset.name, "-", model.name, ".rds")))
+            model.file.path =
+                replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                                c(dataset.name, model.name),
+                                CLASSIFIERS.LEARNED)
+
+            model = readRDS(model.file.path)
 
             models = merge(models, list(model))
 
@@ -95,20 +106,21 @@ for (dataset.name in datasets.names)
             datasets.imputed[[model.name]] = model.datasets.imputed
         }
 
-        classifier.model.with.imputation =
-            crossValidationForImputation(datasets.imputed, models, ncv.folds)
+        classifier.imputation.model =
+            cross.validation.for.imputation(datasets.imputed, models, NCV.FOLDS)
 
-        saveRDS(classifier.model.with.imputation, classifier.model.path)
+        saveRDS(classifier.imputation.model, classifier.imputation.model.file.path)
 
     } else {
-        flog.info("Classifier model exists, skipping learning")
+        flog.info("Classifier imputation model exists, skipping learning")
 
-        classifier.model.with.imputation = readRDS(classifier.model.path)
+        classifier.imputation.model =
+            readRDS(classifier.imputation.model.file.path)
 
-        folds.performances = classifier.model.with.imputation$folds.performances
+        folds.performances = classifier.imputation.model$folds.performances
 
-        flog.info(paste0("Estimated ", ncv.performance.selector, ":    ",
-                         round(mean(folds.performances[[ncv.performance.selector]]), 3)))
+        flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ":    ",
+                         round(mean(folds.performances[[NCV.PERFORMANCE.SELECTOR]]), 3)))
         flog.info(paste0("Estimated Sensitivity: ",
                          round(mean(folds.performances[["Sensitivity"]]), 3)))
         flog.info(paste0("Estimated Specificity: ",

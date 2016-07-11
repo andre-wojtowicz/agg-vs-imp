@@ -1,4 +1,4 @@
-imputationMedianMode = function(data)
+imputation.median.mode = function(data)
 {
     colnames.ord.factor =
         names(which(sapply(colnames(data),
@@ -16,7 +16,7 @@ imputationMedianMode = function(data)
                                  simplify = F))$data
 }
 
-imputationRandomForest = function(data)
+imputation.random.forest = function(data)
 {
     suppressWarnings(
         capture.output(
@@ -26,7 +26,7 @@ imputationRandomForest = function(data)
     cbind(data.new, data[ncol(data)])
 }
 
-imputationMice = function(data)
+imputation.mice = function(data)
 {
     data.imputed = mice::complete(mice::mice(data[, -ncol(data)],
                                              m = 1, maxit = 10,

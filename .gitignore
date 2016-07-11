@@ -19,7 +19,7 @@ vignettes/*.pdf
 .Rproj.user
 .log
 
-models/
+classifiers/
 datasets/*-classification.rds
 datasets/*-feature-selection.rds
 datasets/*-obscuration.rds

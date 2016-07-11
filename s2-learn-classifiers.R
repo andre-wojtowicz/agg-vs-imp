@@ -2,48 +2,53 @@
 
 source("init.R")
 
-setupLogger(LOGGER.OUTPUT.S2.FILE)
+setup.logger(LOGGER.OUTPUT.S2.FILE)
 
 flog.info("Step 2: learn classifiers")
 
-if (!dir.exists("models"))
+if (!dir.exists(CLASSIFIERS.DIR))
 {
-    dir.create("models")
+    dir.create(CLASSIFIERS.DIR)
 }
 
-for (dataset.name in datasets.names)
+for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
-    for (model.name in c(classifiers.baseline, classifiers.list))
+    for (model.name in c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))
     {
         flog.info(paste("Classifier:", model.name))
 
-        if (file.exists(file.path("models",
-                                  paste0(dataset.name, "-", model.name, ".rds"))))
+        model.file.path = replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                                          c(dataset.name, model.name),
+                                          CLASSIFIERS.LEARNED)
+
+        if (file.exists(model.file.path))
         {
             flog.info("Model exists, skipping learning")
 
-            model = readRDS(file.path("models",
-                                      paste0(dataset.name, "-", model.name, ".rds")))
+            model = readRDS(model.file.path)
 
             folds.performance = attr(model, "folds.performance")
 
-            flog.info(paste0("Estimated ", ncv.performance.selector, ": ",
-                             round(mean(folds.performance[[ncv.performance.selector]]), 3)))
+            flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ": ",
+                             round(mean(folds.performance[[NCV.PERFORMANCE.SELECTOR]]), 3)))
 
             flog.info(paste(rep("*", 10), collapse = ""))
 
             next
         }
 
-        dataset.feature.selection =
-            readRDS(file.path("datasets", paste0(dataset.name, "-feature-selection.rds")))
+        dataset.feature.selection.file.path =
+            replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.FEATURE.SELECTION)
+        dataset.classification.file.path =
+            replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.CLASSIFICATION)
 
-        dataset.classification =
-            readRDS(file.path("datasets", paste0(dataset.name, "-classification.rds")))
+        dataset.feature.selection = readRDS(dataset.feature.selection.file.path)
+        dataset.classification    = readRDS(dataset.classification.file.path)
 
-        fs.method  = classifiers.feature.selection.method[[model.name]]
+
+        fs.method = CLASSIFIERS.FEATURE.SELECTION.METHOD[[model.name]]
 
         if (!is.null(fs.method))
         {
@@ -74,20 +79,18 @@ for (dataset.name in datasets.names)
                                            dataset.classification)
         }
 
+        model.grid  = CLASSIFIERS.TUNING.PARAMS[[model.name]]
+        model.attrs = CLASSIFIERS.BASIC.ATTRIBUTES[[model.name]]
 
-        model.grid  = classifiers.tuning.params[[model.name]]
-        model.attrs = classifiers.basic.attributes[[model.name]]
-
-        model = nestedCrossValidation(dataset.classification, ncv.folds,
-                                      model.name, model.grid, model.attrs)
+        model = nested.cross.validation(dataset.classification, NCV.FOLDS,
+                                        model.name, model.grid, model.attrs)
 
         if (model.name == "OneR")
         {
             .jcache(model$finalModel$classifier)
         }
 
-        saveRDS(model, file.path("models",
-                                 paste0(dataset.name, "-", model.name, ".rds")))
+        saveRDS(model, model.file.path)
 
         flog.info(paste(rep("*", 10), collapse = ""))
     }
