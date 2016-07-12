@@ -11,10 +11,10 @@ for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
-    dataset.obscured =
+    dataset.obscured.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURED)
 
-    dataset.obscured = readRDS(dataset.obscured)
+    dataset.obscured = readRDS(dataset.obscured.file.path)
 
     imputation.methods = list("median/mode"       = imputation.median.mode,
                               "random forest"     = imputation.random.forest,

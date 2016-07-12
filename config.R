@@ -40,6 +40,8 @@ DATASETS.OBSCURATION       =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscuration.rds"))
 DATASETS.OBSCURED          =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscured.rds"))
+DATASETS.INTERVAL          =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds"))
 
 DATASETS.NAMES                    = c("bank-marketing",
                                       "magic",

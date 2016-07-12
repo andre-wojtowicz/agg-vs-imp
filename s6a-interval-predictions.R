@@ -10,32 +10,39 @@ for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
-    dataset.interval.path = file.path("datasets", paste0(dataset.name, "-interval.rds"))
+    dataset.interval.predictions.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.INTERVAL)
 
-    if (file.exists(dataset.interval.path))
+    if (file.exists(dataset.interval.predictions.file.path))
     {
         flog.info("Interval predictions exists, skipping calculations")
         next
     }
 
-    dataset.obscured =
-        readRDS(file.path("datasets", paste0(dataset.name, "-obscured.rds")))
+    dataset.obscured.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURED)
+
+    dataset.obscured = readRDS(dataset.obscured.file.path)
 
     dataset.interval.predictions =
-        data.frame(matrix(ncol = 2*length(classifiers.list),
+        data.frame(matrix(ncol = 2 * length(CLASSIFIERS.LIST),
                           nrow = nrow(dataset.obscured),
                           data = 0))
 
-    for (model.name in classifiers.list)
+    for (model.name in CLASSIFIERS.LIST)
     {
         set.seed(SEED)
 
         flog.info(paste("Model:", model.name))
 
-        model = readRDS(file.path("models",
-                                  paste0(dataset.name, "-", model.name, ".rds")))
+        model.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.LEARNED)
 
-        colnames.id = 2 * which(classifiers.list == model.name)
+        model = readRDS(model.file.path)
+
+        colnames.id = 2 * which(CLASSIFIERS.LIST == model.name)
         colnames(dataset.interval.predictions)[c(colnames.id - 1, colnames.id)] =
             paste0(model.name, c(".lower", ".upper"))
 
@@ -121,7 +128,7 @@ for (dataset.name in DATASETS.NAMES)
                             c(min(predicted.values), max(predicted.values))
 
                     } else {
-                        if (model.name %in% opt.bf.num.classifiers)
+                        if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
                         {
                             flog.info(paste("Case:", i, "- b.f. factor-numeric opt."))
 
@@ -129,7 +136,7 @@ for (dataset.name in DATASETS.NAMES)
                                 sapply(1:length(features.numeric.nas), function(x)
                                 {
                                     runif(length(features.numeric.nas) *
-                                              numeric.bf.optimization.reps, 0, 1)
+                                              OPTIMIZATION.NUMERIC.BF.REPS, 0, 1)
                                 })
 
                             colnames(eval.num.points) = features.numeric.nas
@@ -201,7 +208,7 @@ for (dataset.name in DATASETS.NAMES)
                                     }
 
                                     start.values =
-                                        matrix(runif(numeric.optimization.reps *
+                                        matrix(runif(OPTIMIZATION.NUMERIC.REPS *
                                                          length(features.numeric.nas),
                                                      0, 1),
                                                ncol = length(features.numeric.nas))
@@ -217,7 +224,7 @@ for (dataset.name in DATASETS.NAMES)
                                                     opt.obj <-
                                                         optimx(par     = y,
                                                                fn      = targetOptFunc2,
-                                                               method  = opt.numeric.method,
+                                                               method  = OPTIMIZATION.NUMERIC.METHOD,
                                                                lower   = lower.values,
                                                                upper   = upper.values,
                                                                control = list(
@@ -262,7 +269,7 @@ for (dataset.name in DATASETS.NAMES)
                     }
 
                 } else {
-                    if (model.name %in% opt.bf.num.classifiers)
+                    if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
                     {
                         flog.info(paste("Case:", i, "- bf. numeric opt."))
 
@@ -270,7 +277,7 @@ for (dataset.name in DATASETS.NAMES)
                             sapply(1:length(features.numeric.nas), function(x)
                             {
                                 runif(length(features.numeric.nas) *
-                                          numeric.bf.optimization.reps, 0, 1)
+                                          OPTIMIZATION.NUMERIC.BF.REPS, 0, 1)
                             })
 
                         est.vals =
@@ -307,7 +314,7 @@ for (dataset.name in DATASETS.NAMES)
                         }
 
                         start.values =
-                            matrix(runif(numeric.optimization.reps *
+                            matrix(runif(OPTIMIZATION.NUMERIC.REPS *
                                              length(features.numeric.nas), 0, 1),
                                    ncol = length(features.numeric.nas))
                         lower.values = rep(0  , length(features.numeric.nas))
@@ -331,7 +338,7 @@ for (dataset.name in DATASETS.NAMES)
                                         opt.obj <-
                                             optimx(par     = y,
                                                    fn      = targetOptFunc,
-                                                   method  = opt.numeric.method,
+                                                   method  = OPTIMIZATION.NUMERIC.METHOD,
                                                    lower   = lower.values,
                                                    upper   = upper.values,
                                                    control = list(kkt           = FALSE,
@@ -385,11 +392,11 @@ for (dataset.name in DATASETS.NAMES)
         cbind(data.frame(obscure.level =
                              sapply(1:nrow(dataset.obscured), function(x)
                              {
-                                 sum(is.na(dataset.obscured[x, ]))/(ncol(dataset.obscured) - 1)
+                                sum(is.na(dataset.obscured[x, ]))/(ncol(dataset.obscured) - 1)
                              })),
               dataset.interval.predictions)
 
-    saveRDS(dataset.interval.path, dataset.interval.predictions)
+    saveRDS(dataset.interval.predictions, dataset.interval.predictions.file.path)
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }
