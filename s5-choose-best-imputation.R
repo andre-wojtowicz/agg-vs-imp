@@ -25,7 +25,7 @@ for (dataset.name in DATASETS.NAMES)
     baseline.imputation.model.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, CLASSIFIERS.IMPUTATION.BASELINE)
 
-    if (!file.exists(baseline.imputation.model.file.path))
+    if (!file.exists(baseline.imputation.model.file.path) | OVERWRITE.OUTPUT.FILES)
     {
         baseline.model.file.path =
             replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
@@ -53,7 +53,7 @@ for (dataset.name in DATASETS.NAMES)
         saveRDS(baseline.imputation.model, baseline.imputation.model.file.path)
 
     } else {
-        flog.info("Baseline model exists, skipping learning")
+        flog.warn("Baseline model exists, skipping learning")
 
         baseline.imputation.model = readRDS(baseline.imputation.model.file.path)
 
@@ -74,7 +74,7 @@ for (dataset.name in DATASETS.NAMES)
     classifier.imputation.model.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, CLASSIFIERS.IMPUTATION.MODEL)
 
-    if (!file.exists(classifier.imputation.model.file.path))
+    if (!file.exists(classifier.imputation.model.file.path) | OVERWRITE.OUTPUT.FILES)
     {
         models = list()
         datasets.imputed = list()
@@ -112,7 +112,7 @@ for (dataset.name in DATASETS.NAMES)
         saveRDS(classifier.imputation.model, classifier.imputation.model.file.path)
 
     } else {
-        flog.info("Classifier imputation model exists, skipping learning")
+        flog.warn("Classifier imputation model exists, skipping learning")
 
         classifier.imputation.model =
             readRDS(classifier.imputation.model.file.path)

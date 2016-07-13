@@ -32,34 +32,6 @@ for (dataset.name in DATASETS.NAMES)
                        b = dataset.levels[2])) %>%
         sample_n(DATASETS.SIZE.PER.CLASS)
 
-
-    dataset.class.1.feature.selection = dataset.class.1 %>%
-        filter(row_number() <= DATASETS.SIZE.FEATURE.SELECTION / 2)
-
-    dataset.class.1.classification = dataset.class.1 %>%
-        filter(between(row_number(),
-                       DATASETS.SIZE.FEATURE.SELECTION / 2 + 1,
-                       (DATASETS.SIZE.FEATURE.SELECTION +
-                            DATASETS.SIZE.CLASSIFICATION) / 2))
-
-    dataset.class.1.obscuration = dataset.class.1 %>%
-        filter(row_number() >= (DATASETS.SIZE.FEATURE.SELECTION +
-                                    DATASETS.SIZE.CLASSIFICATION) / 2 + 1)
-
-
-    dataset.class.2.feature.selection = dataset.class.2 %>%
-        filter(row_number() <= DATASETS.SIZE.FEATURE.SELECTION / 2)
-
-    dataset.class.2.classification = dataset.class.2 %>%
-        filter(between(row_number(),
-                       DATASETS.SIZE.FEATURE.SELECTION / 2 + 1,
-                       (DATASETS.SIZE.FEATURE.SELECTION +
-                            DATASETS.SIZE.CLASSIFICATION) / 2))
-
-    dataset.class.2.obscuration = dataset.class.2 %>%
-        filter(row_number() >= (DATASETS.SIZE.FEATURE.SELECTION +
-                                    DATASETS.SIZE.CLASSIFICATION) / 2 + 1)
-
     dataset.feature.selection.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.FEATURE.SELECTION)
     dataset.classification.file.path =
@@ -67,10 +39,58 @@ for (dataset.name in DATASETS.NAMES)
     dataset.obscuration.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURATION)
 
-    saveRDS(rbind(dataset.class.1.feature.selection, dataset.class.2.feature.selection),
-            dataset.feature.selection.file.path)
-    saveRDS(rbind(dataset.class.1.classification, dataset.class.2.classification),
-            dataset.classification.file.path)
-    saveRDS(rbind(dataset.class.1.obscuration, dataset.class.2.obscuration),
-            dataset.obscuration.file.path)
+    if (!file.exists(dataset.feature.selection.file.path) | OVERWRITE.OUTPUT.FILES)
+    {
+        flog.info("Saving feature selection dataset")
+
+        dataset.class.1.feature.selection = dataset.class.1 %>%
+            filter(row_number() <= DATASETS.SIZE.FEATURE.SELECTION / 2)
+        dataset.class.2.feature.selection = dataset.class.2 %>%
+            filter(row_number() <= DATASETS.SIZE.FEATURE.SELECTION / 2)
+
+        saveRDS(rbind(dataset.class.1.feature.selection, dataset.class.2.feature.selection),
+                dataset.feature.selection.file.path)
+    } else {
+        flog.warn("Feature selection dataset exists, skipping")
+    }
+
+    if (!file.exists(dataset.classification.file.path) | OVERWRITE.OUTPUT.FILES)
+    {
+        flog.info("Saving classification dataset")
+
+        dataset.class.1.classification = dataset.class.1 %>%
+            filter(between(row_number(),
+                           DATASETS.SIZE.FEATURE.SELECTION / 2 + 1,
+                           (DATASETS.SIZE.FEATURE.SELECTION +
+                                DATASETS.SIZE.CLASSIFICATION) / 2))
+        dataset.class.2.classification = dataset.class.2 %>%
+            filter(between(row_number(),
+                           DATASETS.SIZE.FEATURE.SELECTION / 2 + 1,
+                           (DATASETS.SIZE.FEATURE.SELECTION +
+                                DATASETS.SIZE.CLASSIFICATION) / 2))
+
+        saveRDS(rbind(dataset.class.1.classification, dataset.class.2.classification),
+                dataset.classification.file.path)
+    } else {
+        flog.warn("Classification dataset exists, skipping")
+    }
+
+    if (!file.exists(dataset.obscuration.file.path) | OVERWRITE.OUTPUT.FILES)
+    {
+        flog.info("Saving obscuration dataset")
+
+        dataset.class.1.obscuration = dataset.class.1 %>%
+            filter(row_number() >= (DATASETS.SIZE.FEATURE.SELECTION +
+                                        DATASETS.SIZE.CLASSIFICATION) / 2 + 1)
+        dataset.class.2.obscuration = dataset.class.2 %>%
+            filter(row_number() >= (DATASETS.SIZE.FEATURE.SELECTION +
+                                        DATASETS.SIZE.CLASSIFICATION) / 2 + 1)
+
+        saveRDS(rbind(dataset.class.1.obscuration, dataset.class.2.obscuration),
+                dataset.obscuration.file.path)
+    } else {
+        flog.warn("Obscuration dataset exists, skipping")
+    }
+
+    flog.info(paste(rep("*", 25), collapse = ""))
 }

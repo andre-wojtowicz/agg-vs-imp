@@ -1,8 +1,9 @@
 # ---- config ----
 
-# randomization
+# randomization and output files
 
-SEED                  = 1337
+SEED                   = 1337
+OVERWRITE.OUTPUT.FILES = TRUE # overwrite created datasets and classifiers
 
 # extra user configuration and init
 
@@ -15,14 +16,14 @@ CHECKPOINT.QUICK.LOAD = TRUE
 
 # logging system
 
-LOGGER.OUTPUT.S1.FILE           = "s1.log"
-LOGGER.OUTPUT.S2.FILE           = "s2.log"
-LOGGER.OUTPUT.S3.FILE           = "s3.log"
-LOGGER.OUTPUT.S4.FILE           = "s4.log"
-LOGGER.OUTPUT.S5.FILE           = "s5.log"
-LOGGER.OUTPUT.S6A.FILE          = "s6a.log"
-LOGGER.OUTPUT.S6B.FILE          = "s6b.log"
-LOGGER.OUTPUT.S7.FILE           = "s7.log"
+LOGGER.OUTPUT.S1.FILE           = "output-s1.log"
+LOGGER.OUTPUT.S2.FILE           = "output-s2.log"
+LOGGER.OUTPUT.S3.FILE           = "output-s3.log"
+LOGGER.OUTPUT.S4.FILE           = "output-s4.log"
+LOGGER.OUTPUT.S5.FILE           = "output-s5.log"
+LOGGER.OUTPUT.S6A.FILE          = "output-s6a.log"
+LOGGER.OUTPUT.S6B.FILE          = "output-s6b.log"
+LOGGER.OUTPUT.S7.FILE           = "output-s7.log"
 LOGGER.LEVEL                    = 6 # futile.logger::INFO
 LOGGER.OVERWRITE.EXISTING.FILES = TRUE
 
@@ -53,6 +54,10 @@ DATASETS.SIZE.PER.CLASS           = (DATASETS.SIZE.FEATURE.SELECTION +
                                      DATASETS.SIZE.CLASSIFICATION +
                                      DATASETS.SIZE.OBSCURATION) / 2
 DATASETS.OVERWRITE.EXISTING.FILES = TRUE
+
+# obscuration step
+
+OBSCURATION.NO.NAS.FRACTION = 1/3
 
 # nested cross-validation setup
 
