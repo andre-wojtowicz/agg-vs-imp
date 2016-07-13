@@ -27,44 +27,10 @@ LOGGER.OUTPUT.S7.FILE           = "output-s7.log"
 LOGGER.LEVEL                    = 6 # futile.logger::INFO
 LOGGER.OVERWRITE.EXISTING.FILES = TRUE
 
-# datasets used in the experiment
+# regex patterns
 
-DATASETS.DIR                      = "datasets"
-DATASETS.NAME.PATTERN             = "DATASET-NAME"
-DATASETS.ORIGIN            =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, ".rds"))
-DATASETS.FEATURE.SELECTION =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-feature-selection.rds"))
-DATASETS.CLASSIFICATION    =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-classification.rds"))
-DATASETS.OBSCURATION       =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscuration.rds"))
-DATASETS.OBSCURED          =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscured.rds"))
-DATASETS.INTERVAL          =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds"))
-
-DATASETS.NAMES                    = c("bank-marketing",
-                                      "magic",
-                                      "wine-quality")
-DATASETS.SIZE.FEATURE.SELECTION   = 150 # TODO:
-DATASETS.SIZE.CLASSIFICATION      = 300 #  450
-DATASETS.SIZE.OBSCURATION         = 300 #  450
-DATASETS.SIZE.PER.CLASS           = (DATASETS.SIZE.FEATURE.SELECTION +
-                                     DATASETS.SIZE.CLASSIFICATION +
-                                     DATASETS.SIZE.OBSCURATION) / 2
-DATASETS.OVERWRITE.EXISTING.FILES = TRUE
-
-# obscuration step
-
-OBSCURATION.NO.NAS.FRACTION = 1/3
-
-# nested cross-validation setup
-
-NCV.FOLDS                  = 10
-NCV.PREPROCESSING.METHODS  = "range"
-NCV.PERFORMANCE.SELECTOR   = "Accuracy"
-NCV.PERFORMANCE.MAXIMIZE   = TRUE
+CLASSIFIERS.NAME.PATTERN        = "CLASSIFIER-NAME"
+DATASETS.NAME.PATTERN           = "DATASET-NAME"
 
 # classifiers used in the experiment
 
@@ -73,7 +39,6 @@ NCV.PERFORMANCE.MAXIMIZE   = TRUE
 #   https://topepo.github.io/caret/modelList.html
 
 CLASSIFIERS.DIR                      = "classifiers"
-CLASSIFIERS.NAME.PATTERN             = "CLASSIFIER-NAME"
 CLASSIFIERS.LEARNED =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
                                       CLASSIFIERS.NAME.PATTERN, ".rds"))
@@ -107,6 +72,45 @@ CLASSIFIERS.TUNING.PARAMS = list( # NULL means no tuning parameters
 CLASSIFIERS.BASIC.ATTRIBUTES = list( # NULL means no need to set extra attributes
     svmLinear = list(scaled = FALSE)
 )
+
+# datasets used in the experiment
+
+DATASETS.DIR                      = "datasets"
+DATASETS.ORIGIN            =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, ".rds"))
+DATASETS.FEATURE.SELECTION =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
+                                   CLASSIFIERS.NAME.PATTERN, "-feature-selection.rds"))
+DATASETS.CLASSIFICATION    =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
+                                   CLASSIFIERS.NAME.PATTERN, "-classification.rds"))
+DATASETS.OBSCURATION       =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscuration.rds"))
+DATASETS.OBSCURED          =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscured.rds"))
+DATASETS.INTERVAL          =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds"))
+
+DATASETS.NAMES                    = c("bank-marketing",
+                                      "magic",
+                                      "wine-quality")
+DATASETS.SIZE.FEATURE.SELECTION   =  150
+DATASETS.SIZE.CLASSIFICATION      =  450
+DATASETS.SIZE.OBSCURATION         = 1000
+DATASETS.SIZE.PER.CLASS =
+    ((DATASETS.SIZE.FEATURE.SELECTION + DATASETS.SIZE.CLASSIFICATION) *
+         (length(CLASSIFIERS.LIST) + 1) + DATASETS.SIZE.OBSCURATION) / 2
+
+# obscuration step
+
+OBSCURATION.NO.NAS.FRACTION = 1/3
+
+# nested cross-validation setup
+
+NCV.FOLDS                  = 10
+NCV.PREPROCESSING.METHODS  = "range"
+NCV.PERFORMANCE.SELECTOR   = "Accuracy"
+NCV.PERFORMANCE.MAXIMIZE   = TRUE
 
 # optimization setup when calculating interval predictions
 
