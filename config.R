@@ -49,16 +49,23 @@ CLASSIFIERS.IMPUTATION.MODEL =
 CLASSIFIERS.OVERWRITE.EXISTING.FILES = TRUE
 
 CLASSIFIERS.BASELINE                 = "OneR"
-CLASSIFIERS.LIST                     = c("svmLinear",
+CLASSIFIERS.LIST                     = c("glm",
+                                         "nnet",
+                                         "svmLinear",
                                          "C5.0",
                                          "knn")
 
 CLASSIFIERS.FEATURE.SELECTION.METHOD = list( # NULL means internal method
+    glm       = "rfFuncs",
+    nnet      = "rfFuncs",
     svmLinear = "rfFuncs",
     knn       = "treebagFuncs"
 )
 
 CLASSIFIERS.TUNING.PARAMS = list( # NULL means no tuning parameters
+
+    nnet      = expand.grid(size  = seq(0, 10, 2),
+                            decay = c(0, 10 ^ seq(-5, 5, 2))),
 
     svmLinear = expand.grid(C = 10 ^ seq(-5, 2)),
 
@@ -70,6 +77,7 @@ CLASSIFIERS.TUNING.PARAMS = list( # NULL means no tuning parameters
 )
 
 CLASSIFIERS.BASIC.ATTRIBUTES = list( # NULL means no need to set extra attributes
+    nnet      = list(trace = FALSE),
     svmLinear = list(scaled = FALSE)
 )
 

@@ -47,6 +47,7 @@ library(RWeka) # OneR
 library(rJava)
 library(kernlab) # SVM
 library(C50) # C5.0
+library(nnet) # neural network
 # caret - feature selection
 library(randomForest)
 library(ipred)
