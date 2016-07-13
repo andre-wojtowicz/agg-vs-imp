@@ -26,10 +26,13 @@ for (dataset.name in DATASETS.NAMES)
         if (!file.exists(model.file.path) | OVERWRITE.OUTPUT.FILES)
         {
             dataset.feature.selection.file.path =
-                replace.strings(DATASETS.NAME.PATTERN, dataset.name,
+                replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                                c(dataset.name, model.name),
                                 DATASETS.FEATURE.SELECTION)
             dataset.classification.file.path =
-                replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.CLASSIFICATION)
+                replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                                c(dataset.name, model.name),
+                                DATASETS.CLASSIFICATION)
 
             dataset.feature.selection = readRDS(dataset.feature.selection.file.path)
             dataset.classification    = readRDS(dataset.classification.file.path)
