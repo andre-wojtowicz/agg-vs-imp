@@ -15,9 +15,23 @@ for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
+    used.predictors = list()
+
     for (model.name in c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))
     {
         flog.info(paste("Classifier:", model.name))
+
+        dataset.feature.selection.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            DATASETS.FEATURE.SELECTION)
+        dataset.classification.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            DATASETS.CLASSIFICATION)
+
+        dataset.feature.selection = readRDS(dataset.feature.selection.file.path)
+        dataset.classification    = readRDS(dataset.classification.file.path)
 
         model.file.path = replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
                                           c(dataset.name, model.name),
@@ -25,18 +39,6 @@ for (dataset.name in DATASETS.NAMES)
 
         if (!file.exists(model.file.path) | OVERWRITE.OUTPUT.FILES)
         {
-            dataset.feature.selection.file.path =
-                replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
-                                c(dataset.name, model.name),
-                                DATASETS.FEATURE.SELECTION)
-            dataset.classification.file.path =
-                replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
-                                c(dataset.name, model.name),
-                                DATASETS.CLASSIFICATION)
-
-            dataset.feature.selection = readRDS(dataset.feature.selection.file.path)
-            dataset.classification    = readRDS(dataset.classification.file.path)
-
             fs.method = CLASSIFIERS.FEATURE.SELECTION.METHOD[[model.name]]
 
             if (!is.null(fs.method))
@@ -89,10 +91,22 @@ for (dataset.name in DATASETS.NAMES)
 
             flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ": ",
                              round(mean(folds.performance[[NCV.PERFORMANCE.SELECTOR]]), 3)))
+
+            flog.info(paste("Using", length(attr(model, "used.predictors")),
+                            "of", ncol(dataset.feature.selection) - 1, "features"))
         }
+
+        used.predictors[[model.name]] = attr(model, "used.predictors")
 
         flog.info(paste(rep("*", 10), collapse = ""))
     }
+
+    used.predictors.row.names =
+        colnames(dataset.feature.selection)[-ncol(dataset.feature.selection)]
+
+    flog.info("Features used by classifiers:")
+    flog.info(capture.output(used.predictors.as.table(used.predictors,
+                                                      used.predictors.row.names)))
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }

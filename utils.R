@@ -236,3 +236,20 @@ replace.strings = function(from, to, base.string)
 
     return(base.string)
 }
+
+used.predictors.as.table = function(used.predictors.list, row.names)
+{
+
+    col.names = names(used.predictors.list)
+    row.names = sort(row.names)
+
+    df = revalue(sapply(col.names, function(x)
+                 {
+                    as.character(row.names %in% used.predictors.list[[x]])
+                 }),
+                 c("TRUE" = "*", "FALSE" = " "))
+
+    rownames(df) = row.names
+
+    return(as.table(df))
+}
