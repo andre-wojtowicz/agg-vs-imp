@@ -109,7 +109,8 @@ nested.cross.validation = function(dataset, no.folds, model.name,
 
     attr(model, "used.predictors") = used.predictors
 
-    flog.info(paste("Used predictors:", length(used.predictors)))
+    flog.info(paste("Using", length(used.predictors),
+                    "of", ncol(dataset) - 1, "features"))
 
     return(model)
 }
