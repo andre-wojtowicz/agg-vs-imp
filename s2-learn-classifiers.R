@@ -56,7 +56,7 @@ for (dataset.name in DATASETS.NAMES)
                                                 number = 10))
 
                 flog.info(paste("Selected", length(predictors(fs.results)),
-                                "from", ncol(dataset.feature.selection) - 1, "featrues"))
+                                "from", ncol(dataset.feature.selection) - 1, "features"))
 
                 dataset.classification =
                     dataset.classification[, c(predictors(fs.results),
@@ -86,15 +86,15 @@ for (dataset.name in DATASETS.NAMES)
             flog.warn("Model exists, skipping learning")
 
             model = readRDS(model.file.path)
-
-            folds.performance = attr(model, "folds.performance")
-
-            flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ": ",
-                             round(mean(folds.performance[[NCV.PERFORMANCE.SELECTOR]]), 3)))
-
-            flog.info(paste("Using", length(attr(model, "used.predictors")),
-                            "of", ncol(dataset.feature.selection) - 1, "features"))
         }
+
+        folds.performance = attr(model, "folds.performance")
+
+        flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ": ",
+                         round(mean(folds.performance[[NCV.PERFORMANCE.SELECTOR]]), 3)))
+
+        flog.info(paste("Using", length(attr(model, "used.predictors")),
+                        "of", ncol(dataset.feature.selection) - 1, "features"))
 
         used.predictors[[model.name]] = attr(model, "used.predictors")
 

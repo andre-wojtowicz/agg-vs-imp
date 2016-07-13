@@ -59,7 +59,7 @@ CLASSIFIERS.FEATURE.SELECTION.METHOD = list( # NULL means internal method
     glm       = "rfFuncs",
     nnet      = "rfFuncs",
     svmLinear = "rfFuncs",
-    knn       = "treebagFuncs"
+    knn       = "rfFuncs"
 )
 
 CLASSIFIERS.TUNING.PARAMS = list( # NULL means no tuning parameters

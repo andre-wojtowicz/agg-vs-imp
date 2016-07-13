@@ -86,9 +86,6 @@ nested.cross.validation = function(dataset, no.folds, model.name,
     attr(model, "folds.performance") = folds.performance
     attr(model, "preproc.scheme")    = preproc.scheme
 
-    flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ": ",
-                     round(mean(folds.performance[[NCV.PERFORMANCE.SELECTOR]]), 3)))
-
     used.predictors = set()
 
     if (model.name == "OneR")
@@ -108,9 +105,6 @@ nested.cross.validation = function(dataset, no.folds, model.name,
     }
 
     attr(model, "used.predictors") = used.predictors
-
-    flog.info(paste("Using", length(used.predictors),
-                    "of", ncol(dataset) - 1, "features"))
 
     return(model)
 }
