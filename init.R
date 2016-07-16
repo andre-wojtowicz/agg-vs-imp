@@ -18,12 +18,14 @@ library(checkpoint)
 
 if (CHECKPOINT.QUICK.LOAD) # approx. x10 faster checkpoint library loading
 {
-    options(checkpoint.mranUrl = "https://mran.microsoft.com/") # assume https
+    # assume https
+    options(checkpoint.mranUrl = CHECKPOINT.MRAN.URL)
+    # disable url checking
     assignInNamespace("is.404", function(mran, warn = TRUE) { FALSE },
-                      "checkpoint") # disable url checking
+                      "checkpoint")
 }
 
-checkpoint("2016-04-01", verbose = TRUE, scanForPackages = TRUE)
+checkpoint(CHECKPOINT.QUICK.LOAD, verbose = TRUE, scanForPackages = TRUE)
 
 # load logging system
 
