@@ -25,7 +25,7 @@ if (CHECKPOINT.QUICK.LOAD) # approx. x10 faster checkpoint library loading
                       "checkpoint")
 }
 
-checkpoint(CHECKPOINT.QUICK.LOAD, verbose = TRUE, scanForPackages = TRUE)
+checkpoint(CHECKPOINT.SNAPSHOT.DATE, verbose = TRUE, scanForPackages = TRUE)
 
 # load logging system
 
