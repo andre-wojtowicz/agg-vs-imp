@@ -2,7 +2,7 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S1.FILE)
+setup.logger(LOGGER.OUTPUT.S1.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 1: divide data")
 

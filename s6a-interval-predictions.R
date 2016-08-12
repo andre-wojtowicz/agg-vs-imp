@@ -2,7 +2,7 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S6A.FILE)
+setup.logger(LOGGER.OUTPUT.S6A.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 6a: calculate interval predictions")
 

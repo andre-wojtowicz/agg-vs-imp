@@ -1,14 +1,19 @@
 # functions for cross-validations
 
-nested.cross.validation = function(dataset, no.folds, model.name,
-                                   model.grid, model.attrs)
+nested.cross.validation = function(dataset, model.name,
+                                   model.grid, model.attrs, no.folds,
+                                   preprocessing.methods, performance.selector,
+                                   performance.maximize,
+                                   allow.parallel,
+                                   seed)
 {
-    set.seed(SEED)
+    set.seed(seed)
 
     colnames(dataset)[ncol(dataset)] = "Class"
 
-    preproc.scheme = caret::preProcess(dataset,
-                                       method = NCV.PREPROCESSING.METHODS)
+    preproc.scheme = suppressWarnings( # in case of 'range' elimination
+                        caret::preProcess(dataset,
+                                          method = preprocessing.methods))
     dataset = stats::predict(preproc.scheme, dataset)
 
 
@@ -30,8 +35,8 @@ nested.cross.validation = function(dataset, no.folds, model.name,
                                            k = no.folds)
 
             train.control = caret::trainControl(method = "cv",
-                                                index = idx.inner,
-                                                allowParallel = TRUE)
+                                                index  = idx.inner,
+                                                allowParallel = allow.parallel)
 
             training.arguments = merge(
                 list(form      = Class ~ .,
@@ -39,8 +44,8 @@ nested.cross.validation = function(dataset, no.folds, model.name,
                      trControl = train.control,
                      method    = model.name,
                      tuneGrid  = model.grid,
-                     metric    = NCV.PERFORMANCE.SELECTOR,
-                     maximize  = NCV.PERFORMANCE.MAXIMIZE),
+                     metric    = performance.selector,
+                     maximize  = performance.maximize),
                 model.attrs)
 
             model = suppressWarnings(do.call(caret::train, training.arguments))
@@ -62,8 +67,9 @@ nested.cross.validation = function(dataset, no.folds, model.name,
     flog.info("Training final model")
 
     train.control = caret::trainControl(method = "cv",
-                                        index = idx.outer,
-                                        classProbs = TRUE)
+                                        index  = idx.outer,
+                                        classProbs    = TRUE,
+                                        allowParallel = allow.parallel)
 
     training.arguments = merge(
         list(form      = Class ~ .,
@@ -71,8 +77,8 @@ nested.cross.validation = function(dataset, no.folds, model.name,
              trControl = train.control,
              method    = model.name,
              tuneGrid  = model.grid,
-             metric    = NCV.PERFORMANCE.SELECTOR,
-             maximize  = NCV.PERFORMANCE.MAXIMIZE),
+             metric    = performance.selector,
+             maximize  = performance.maximize),
         model.attrs)
 
     suppressWarnings(
@@ -80,7 +86,7 @@ nested.cross.validation = function(dataset, no.folds, model.name,
 
     if (is.null(model.grid))
     {
-        folds.performance = model$resample[NCV.PERFORMANCE.SELECTOR]
+        folds.performance = model$resample[performance.selector]
     }
 
     attr(model, "folds.performance") = folds.performance
@@ -90,8 +96,18 @@ nested.cross.validation = function(dataset, no.folds, model.name,
 
     if (model.name == "OneR")
     {
-        used.predictors = set(strsplit(model$finalModel$classifier$toString(),
-                                       ":")[[1]][1])
+        oner.predictor.name = strsplit(model$finalModel$classifier$toString(),
+                                       ":")[[1]][1]
+        predictors.matching = sapply(head(colnames(dataset), ncol(dataset) - 1),
+                                     function(w){grepl(paste0("^", w),
+                                                       oner.predictor.name)})
+
+        if (sum(predictors.matching) != 1)
+        {
+            stop("Unable to determine predictors used by OneR classifier")
+        }
+
+        used.predictors = set(names(which(predictors.matching == TRUE)))
     } else {
         predictors.names = tryCatch(
             caret::predictors(model),
@@ -104,19 +120,28 @@ nested.cross.validation = function(dataset, no.folds, model.name,
         }
     }
 
+    if (length(used.predictors -
+               as.set(head(colnames(dataset), ncol(dataset) - 1))) > 0)
+    {
+        stop(paste("Predictors used by", model.name,
+                   "are not present in the dataset"))
+    }
+
     attr(model, "used.predictors") = used.predictors
 
     return(model)
 }
 
-cross.validation.for.imputation = function(datasets, models, no.folds)
+cross.validation.for.imputation = function(datasets, models, no.folds,
+                                           performance.selector,
+                                           performance.maximize, seed)
 {
-    set.seed(SEED)
+    set.seed(seed)
 
     idx.cv = caret::createFolds(1:nrow(datasets[[1]][[1]]),
                                 k = no.folds)
 
-    which.function = ifelse(NCV.PERFORMANCE.MAXIMIZE, which.max, which.min)
+    which.function = ifelse(performance.maximize, which.max, which.min)
 
     params.grid = expand.grid(1:length(datasets[[1]]), 1:length(models))
 
@@ -132,24 +157,27 @@ cross.validation.for.imputation = function(datasets, models, no.folds)
         perf.measures =
             apply(params.grid, 1, function(ids)
             {
-                dataset.train = datasets[[ids[2]]][[ids[1]]][unname(unlist(idx.train)), ]
+                dataset.train =
+                    datasets[[ids[2]]][[ids[1]]][unname(unlist(idx.train)), ]
                 model         = models[[ids[2]]]
 
-                predictions = stats::predict(model, dataset.train)
+                predictions =
+                    suppressWarnings(stats::predict(model, dataset.train))
                 cf.matrix =
                   caret::confusionMatrix(predictions,
                                          dataset.train[, ncol(dataset.train)])
-                cf.matrix$overall[[NCV.PERFORMANCE.SELECTOR]]
+                cf.matrix$overall[[performance.selector]]
             })
 
         best.id = which.function(perf.measures)
 
-        dataset.test = datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]][unname(unlist(idx.test)), ]
+        dataset.test =
+            datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]][unname(unlist(idx.test)), ]
         model        = models[[params.grid[best.id, 2]]]
 
-        predictions = stats::predict(model, dataset.test)
-        cf.matrix = caret::confusionMatrix(predictions,
-                                           dataset.test[, ncol(dataset.test)])
+        predictions = suppressWarnings(stats::predict(model, dataset.test))
+        cf.matrix   = caret::confusionMatrix(predictions,
+                                             dataset.test[, ncol(dataset.test)])
 
         folds.performances = rbind(folds.performances,
                                    data.frame(t(c(cf.matrix$overall,
@@ -165,10 +193,10 @@ cross.validation.for.imputation = function(datasets, models, no.folds)
             dataset = datasets[[ids[2]]][[ids[1]]]
             model   = models[[ids[2]]]
 
-            predictions = stats::predict(model, dataset)
-            cf.matrix = caret::confusionMatrix(predictions,
-                                             dataset[, ncol(dataset)])
-            cf.matrix$overall[[NCV.PERFORMANCE.SELECTOR]]
+            predictions = suppressWarnings(stats::predict(model, dataset))
+            cf.matrix   = caret::confusionMatrix(predictions,
+                                                 dataset[, ncol(dataset)])
+            cf.matrix$overall[[performance.selector]]
         })
 
     best.id = which.function(perf.measures)
@@ -186,8 +214,8 @@ cross.validation.for.imputation = function(datasets, models, no.folds)
 
     flog.info(paste("Choosed imputation:", choosed.imputation.name))
 
-    flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ":    ",
-                     round(mean(folds.performances[[NCV.PERFORMANCE.SELECTOR]]), 3)))
+    flog.info(paste0("Estimated ", performance.selector, ":    ",
+                     round(mean(folds.performances[[performance.selector]]), 3)))
     flog.info(paste0("Estimated Sensitivity: ",
                      round(mean(folds.performances[["Sensitivity"]]), 3)))
     flog.info(paste0("Estimated Specificity: ",
@@ -201,9 +229,9 @@ cross.validation.for.imputation = function(datasets, models, no.folds)
 
 # additional functions
 
-setup.logger = function(output.file)
+setup.logger = function(output.file, overwrite.existing.files)
 {
-    if (LOGGER.OVERWRITE.EXISTING.FILES & file.exists(output.file))
+    if (overwrite.existing.files & file.exists(output.file))
     {
         file.remove(output.file)
     }
@@ -246,4 +274,22 @@ used.predictors.as.table = function(used.predictors.list, row.names)
     rownames(df) = row.names
 
     return(as.table(df))
+}
+
+show.factor.levels.counts = function(dataset)
+{
+    for (name in head(colnames(dataset), ncol(dataset) - 1))
+    {
+        if (is.factor(dataset[[name]]) | is.ordered(dataset[[name]]))
+        {
+            tab = table(dataset[[name]])
+
+            if (any(tab > 0 & tab < 10))
+            {
+                flog.debug(paste0("* ", name, ":"))
+                flog.debug(paste(names(which(tab > 0 & tab < 10)), collapse = " "))
+                flog.debug(paste(tab[which(tab > 0 & tab < 10)], collapse = " "))
+            }
+        }
+    }
 }

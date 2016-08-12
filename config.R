@@ -34,13 +34,17 @@ LOGGER.OVERWRITE.EXISTING.FILES = TRUE
 CLASSIFIERS.NAME.PATTERN        = "CLASSIFIER-NAME"
 DATASETS.NAME.PATTERN           = "DATASET-NAME"
 
+# caret library config
+
+CARET.ALLOW.PARALLEL            = TRUE
+
 # classifiers used in the experiment
 
 # list of classifiers used in caret:
 #   https://topepo.github.io/caret/bytag.html
 #   https://topepo.github.io/caret/modelList.html
 
-CLASSIFIERS.DIR                      = "classifiers"
+CLASSIFIERS.DIR                 = "classifiers"
 CLASSIFIERS.LEARNED =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
                                       CLASSIFIERS.NAME.PATTERN, ".rds"))
@@ -102,6 +106,8 @@ DATASETS.INTERVAL          =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds"))
 
 DATASETS.NAMES                    = c("bank-marketing",
+                                      "census-income",
+                                      "credit-card",
                                       "magic",
                                       "wine-quality")
 DATASETS.SIZE.FEATURE.SELECTION   =  150

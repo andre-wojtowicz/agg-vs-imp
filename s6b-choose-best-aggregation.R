@@ -2,6 +2,6 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S6B.FILE)
+setup.logger(LOGGER.OUTPUT.S6B.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 6b: choose best aggregation")

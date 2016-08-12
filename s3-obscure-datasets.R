@@ -2,7 +2,7 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S3.FILE)
+setup.logger(LOGGER.OUTPUT.S3.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 3: obscure datasets")
 

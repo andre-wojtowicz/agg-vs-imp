@@ -2,7 +2,7 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S2.FILE)
+setup.logger(LOGGER.OUTPUT.S2.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 2: learn classifiers")
 
@@ -73,8 +73,12 @@ for (dataset.name in DATASETS.NAMES)
             model.grid  = CLASSIFIERS.TUNING.PARAMS[[model.name]]
             model.attrs = CLASSIFIERS.BASIC.ATTRIBUTES[[model.name]]
 
-            model = nested.cross.validation(dataset.classification, NCV.FOLDS,
-                                            model.name, model.grid, model.attrs)
+            model = nested.cross.validation(dataset.classification, model.name,
+                                            model.grid, model.attrs, NCV.FOLDS,
+                                            NCV.PREPROCESSING.METHODS,
+                                            NCV.PERFORMANCE.SELECTOR,
+                                            NCV.PERFORMANCE.MAXIMIZE,
+                                            CARET.ALLOW.PARALLEL, SEED)
 
             if (model.name == "OneR")
             {

@@ -2,7 +2,7 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S4.FILE)
+setup.logger(LOGGER.OUTPUT.S4.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 4: classifiers performance on obscured dataset")
 
@@ -27,14 +27,17 @@ for (dataset.name in DATASETS.NAMES)
         model = readRDS(model.file.path)
 
         preproc.scheme = attr(model, "preproc.scheme")
-        dataset.obscured.preprocessed = stats::predict(preproc.scheme, dataset.obscured)
+        dataset.obscured.preprocessed =
+            stats::predict(preproc.scheme, dataset.obscured)
 
         dataset.no.nas =
             dataset.obscured.preprocessed[which(rowSums(is.na(
                 dataset.obscured.preprocessed[
                     as.character(attr(model, "used.predictors"))])) == 0), ]
 
-        predictions = stats::predict(model, dataset.no.nas, na.action = NULL)
+        predictions =
+            suppressWarnings(stats::predict(model, dataset.no.nas,
+                                            na.action = NULL))
         cf.matrix = caret::confusionMatrix(predictions,
                                            dataset.no.nas[, ncol(dataset.no.nas)])
 

@@ -3,7 +3,7 @@
 source("init.R")
 source("methods-imputation.R")
 
-setup.logger(LOGGER.OUTPUT.S5.FILE)
+setup.logger(LOGGER.OUTPUT.S5.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 5: choose best imputation")
 
@@ -16,6 +16,7 @@ for (dataset.name in DATASETS.NAMES)
 
     dataset.obscured = readRDS(dataset.obscured.file.path)
 
+
     imputation.methods = list("median/mode"       = imputation.median.mode,
                               "random forest"     = imputation.random.forest,
                               "chained equations" = imputation.mice)
@@ -23,7 +24,8 @@ for (dataset.name in DATASETS.NAMES)
     flog.info(paste("Baseline model:", CLASSIFIERS.BASELINE))
 
     baseline.imputation.model.file.path =
-        replace.strings(DATASETS.NAME.PATTERN, dataset.name, CLASSIFIERS.IMPUTATION.BASELINE)
+        replace.strings(DATASETS.NAME.PATTERN,
+                        dataset.name, CLASSIFIERS.IMPUTATION.BASELINE)
 
     if (!file.exists(baseline.imputation.model.file.path) | OVERWRITE.OUTPUT.FILES)
     {
@@ -40,15 +42,15 @@ for (dataset.name in DATASETS.NAMES)
 
         datasets.imputed = list(lapply(names(imputation.methods), function(name){
             flog.info(paste("Imputation:", name))
-            set.seed(SEED)
-            imputation.methods[[name]](dataset.obscured.preprocessed) }))
+            imputation.methods[[name]](dataset.obscured.preprocessed, SEED) }))
 
         names(datasets.imputed[[1]]) = names(imputation.methods)
 
         baseline.imputation.model =
             cross.validation.for.imputation(datasets.imputed,
                                             list(baseline.model),
-                                            NCV.FOLDS)
+                                            NCV.FOLDS, NCV.PERFORMANCE.SELECTOR,
+                                            NCV.PERFORMANCE.MAXIMIZE, SEED)
 
         saveRDS(baseline.imputation.model, baseline.imputation.model.file.path)
 
@@ -98,8 +100,7 @@ for (dataset.name in DATASETS.NAMES)
 
             model.datasets.imputed = lapply(names(imputation.methods), function(name){
                 flog.info(paste("Imputation:", name))
-                set.seed(SEED)
-                imputation.methods[[name]](dataset.obscured.preprocessed) })
+                imputation.methods[[name]](dataset.obscured.preprocessed, SEED) })
 
             names(model.datasets.imputed) = names(imputation.methods)
 
@@ -107,7 +108,9 @@ for (dataset.name in DATASETS.NAMES)
         }
 
         classifier.imputation.model =
-            cross.validation.for.imputation(datasets.imputed, models, NCV.FOLDS)
+            cross.validation.for.imputation(datasets.imputed, models, NCV.FOLDS,
+                                            NCV.PERFORMANCE.SELECTOR,
+                                            NCV.PERFORMANCE.MAXIMIZE, SEED)
 
         saveRDS(classifier.imputation.model, classifier.imputation.model.file.path)
 
