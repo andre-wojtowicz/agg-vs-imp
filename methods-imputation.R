@@ -34,6 +34,8 @@ imputation.mice = function(data, seed)
                     return("pmm")
                 else if (nlevels(y) == 2)
                     return("logreg")
+                # mice cart/rf does not return reproducible results (even with
+                # seed set) when a factor-variable levels have small count
                 else if ((is.ordered(y) & nlevels(y) > 2 | nlevels(y) > 2))
                 {
                     if (any(table(y) > 0 & table(y) < 10))
