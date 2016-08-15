@@ -61,6 +61,8 @@ library(missForest) # random forest
 library(mice) # chained equations
 # optimization
 library(optimx)
+# parallel computation
+library(doParallel)
 
 # load helper functions
 
