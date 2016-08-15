@@ -1,10 +1,10 @@
-# ---- step-1-divide-data ----
+# ---- step-1-divide-datasets ----
 
 source("init.R")
 
 setup.logger(LOGGER.OUTPUT.S1.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
 
-flog.info("Step 1: divide data")
+flog.info("Step 1: divide datasets")
 
 for (dataset.name in DATASETS.NAMES)
 {

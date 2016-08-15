@@ -41,6 +41,7 @@ library(dplyr)
 library(ttutils)
 library(lazyeval)
 library(R.utils)
+library(RCurl)
 # caret - core
 library(caret)
 library(e1071)

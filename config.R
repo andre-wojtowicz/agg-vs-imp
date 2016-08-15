@@ -18,6 +18,7 @@ CHECKPOINT.QUICK.LOAD    = TRUE # skip testing https and checking url
 
 # logging system
 
+LOGGER.OUTPUT.S0.FILE           = "output-s0.log"
 LOGGER.OUTPUT.S1.FILE           = "output-s1.log"
 LOGGER.OUTPUT.S2.FILE           = "output-s2.log"
 LOGGER.OUTPUT.S3.FILE           = "output-s3.log"
@@ -89,7 +90,16 @@ CLASSIFIERS.BASIC.ATTRIBUTES = list( # NULL means no need to set extra attribute
 
 # datasets used in the experiment
 
-DATASETS.DIR                      = "datasets"
+DATASETS.URL =
+    "https://github.com/andre-wojtowicz/uci-ml-to-r/releases/download/v1.1/data-collection.zip"
+
+DATASETS.NAMES = c("bank-marketing",
+                   "census-income",
+                   "credit-card",
+                   "magic",
+                   "wine-quality")
+
+DATASETS.DIR               = "datasets"
 DATASETS.ORIGIN            =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, ".rds"))
 DATASETS.FEATURE.SELECTION =
@@ -105,11 +115,7 @@ DATASETS.OBSCURED          =
 DATASETS.INTERVAL          =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds"))
 
-DATASETS.NAMES                    = c("bank-marketing",
-                                      "census-income",
-                                      "credit-card",
-                                      "magic",
-                                      "wine-quality")
+
 DATASETS.SIZE.FEATURE.SELECTION   =  150
 DATASETS.SIZE.CLASSIFICATION      =  450
 DATASETS.SIZE.OBSCURATION         = 1000

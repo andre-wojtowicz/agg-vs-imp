@@ -20,7 +20,4 @@ vignettes/*.pdf
 .log
 
 classifiers/
-datasets/*-classification.rds
-datasets/*-feature-selection.rds
-datasets/*-obscuration.rds
-datasets/*-obscured.rds
+datasets/
