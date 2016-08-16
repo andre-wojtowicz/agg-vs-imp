@@ -5,16 +5,21 @@
 ### Datasets
 
  * D1 - bank-marketing
- * D2 - magic
- * D3 - wine-quality
+ * D2 - census-income
+ * D3 - credit-card
+ * D4 - magic
+ * D5 - wine-quality
 
 ### Classifiers
 
- * K1 - SVM
- * K2 - C5.0
- * K3 - kNN
+ * K1 - glm
+ * K2 - nnet
+ * K3 - SVM
+ * K4 - C5.0
+ * K5 - kNN
 
 ### Imputation
+
  * I1 - median & mode
  * I2 - random forest
  * I3 - chained equations

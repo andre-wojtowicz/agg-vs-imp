@@ -3,7 +3,8 @@
 source("init.R")
 source("methods-imputation.R")
 
-setup.logger(LOGGER.OUTPUT.S5.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
+setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S5.FILE),
+             LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 5: choose best imputation")
 

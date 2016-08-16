@@ -1,15 +1,15 @@
 make.psock.cluster = function(names, connection.timeout, ...)
 {
-    if (is.numeric(names)) {
-        names <- as.integer(names[1L])
-        #if (is.na(names) || names < 1L)
-        #    stop("numeric 'names' must be >= 1")
-        names <- rep("localhost", names)
+    if (is.numeric(names))
+    {
+        names = as.integer(names[1L])
+        names = rep("localhost", names)
     }
     parallel:::.check_ncores(length(names))
-    options <- parallel:::addClusterOptions(parallel:::defaultClusterOptions,
+    options = parallel:::addClusterOptions(parallel:::defaultClusterOptions,
                                             list(...))
-    cl <- vector("list", length(names))
+    cl = vector("list", length(names))
+
     for (i in seq_along(cl))
     {
 
@@ -35,7 +35,14 @@ make.psock.cluster = function(names, connection.timeout, ...)
                                 onTimeout = "error")
             cl[[i]] = cl.node
             flog.info("OK")},
-            error = function(e) {flog.warn("Timeout")}
+            error = function(e) {
+                if ("TimeoutException" %in% class(e))
+                {
+                    flog.warn("Timeout")
+                } else {
+                    stop.script(e)
+                }
+            }
         )
     }
 
@@ -58,21 +65,20 @@ make.psock.cluster = function(names, connection.timeout, ...)
 
     if (length(cl.filtered) == 0)
     {
-        flog.fatal("No remote workers")
-        stop()
+        stop.script("No remote workers")
     } else {
         flog.info(paste("Working on", length(cl.filtered), "nodes"))
     }
 
-    class(cl.filtered) <- c("SOCKcluster", "cluster")
+    class(cl.filtered) = c("SOCKcluster", "cluster")
     cl.filtered
 }
 
-stop.cluster = function(cl.to.stop = NULL)
+stop.cluster = function(cl.to.stop)
 {
     flog.info("Workers shut down")
 
-    clusterEvalQ(cl, {
+    clusterEvalQ(cl.to.stop, {
         flog.info("Worker shut down")
     })
     stopCluster(cl.to.stop)

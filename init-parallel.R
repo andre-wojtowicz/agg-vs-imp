@@ -21,8 +21,8 @@ cl = if (PARALLEL.USED.METHOD == "LOCAL")
         flog.info("Creating local FORK cluster")
         makeForkCluster(PARALLEL.LOCAL.NODES)
     } else {
-        flog.fatal(paste("Unknown local parallel cluster method:", PARALLEL.USED.METHOD))
-        stop()
+        stop.script(paste("Unknown local parallel cluster method:",
+                          PARALLEL.USED.METHOD))
     }
 } else if (PARALLEL.USED.METHOD == "REMOTE")
 {
@@ -43,12 +43,11 @@ cl = if (PARALLEL.USED.METHOD == "LOCAL")
             useXDR             = PARALLEL.REMOTE.SLAVE.USEXDR)
     }
     else {
-        flog.fatal(paste("Unknown remote parallel cluster method:", PARALLEL.REMOTE.METHOD))
-        stop()
+        stop.script(paste("Unknown remote parallel cluster method:",
+                          PARALLEL.REMOTE.METHOD))
     }
 } else {
-    flog.fatal(paste("Unknown used parallel method:", PARALLEL.USED.METHOD))
-    stop()
+    stop.script(paste("Unknown used parallel method:", PARALLEL.USED.METHOD))
 }
 
 

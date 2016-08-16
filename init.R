@@ -33,6 +33,11 @@ library(futile.logger)
 
 flog.threshold(LOGGER.LEVEL)
 
+if (!dir.exists(LOGGER.OUTPUT.DIR))
+{
+    dir.create(LOGGER.OUTPUT.DIR, recursive = TRUE)
+}
+
 # load libraries
 
 library(sets)

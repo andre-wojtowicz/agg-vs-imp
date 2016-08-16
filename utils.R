@@ -104,7 +104,7 @@ nested.cross.validation = function(dataset, model.name,
 
         if (sum(predictors.matching) != 1)
         {
-            stop("Unable to determine predictors used by OneR classifier")
+            stop.script("Unable to determine predictors used by OneR classifier")
         }
 
         used.predictors = set(names(which(predictors.matching == TRUE)))
@@ -123,8 +123,8 @@ nested.cross.validation = function(dataset, model.name,
     if (length(used.predictors -
                as.set(head(colnames(dataset), ncol(dataset) - 1))) > 0)
     {
-        stop(paste("Predictors used by", model.name,
-                   "are not present in the dataset"))
+        stop.script(paste("Predictors used by", model.name,
+                          "are not present in the dataset"))
     }
 
     attr(model, "used.predictors") = used.predictors
@@ -248,7 +248,7 @@ replace.strings = function(from, to, base.string)
 {
     if (length(from) != length(to))
     {
-        stop("Unable to replace list of strings of different lengths")
+        stop.script("Unable to replace list of strings of different lengths")
     }
 
     for (i in 1:length(from))
@@ -257,6 +257,18 @@ replace.strings = function(from, to, base.string)
     }
 
     return(base.string)
+}
+
+stop.script = function(error)
+{
+    if (is.character(error))
+    {
+        flog.error(error)
+    } else {
+        flog.error(getMessage(error))
+    }
+
+    throw(error)
 }
 
 used.predictors.as.table = function(used.predictors.list, row.names)

@@ -18,6 +18,7 @@ CHECKPOINT.QUICK.LOAD    = TRUE # skip testing https and checking url
 
 # logging system
 
+LOGGER.OUTPUT.DIR               = "logs"
 LOGGER.OUTPUT.S0.FILE           = "output-s0.log"
 LOGGER.OUTPUT.S1.FILE           = "output-s1.log"
 LOGGER.OUTPUT.S2.FILE           = "output-s2.log"
@@ -55,12 +56,12 @@ CLASSIFIERS.IMPUTATION.MODEL =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-imputation-model.rds"))
 CLASSIFIERS.OVERWRITE.EXISTING.FILES = TRUE
 
-CLASSIFIERS.BASELINE                 = "OneR"
-CLASSIFIERS.LIST                     = c("glm",
-                                         "nnet",
-                                         "svmLinear",
-                                         "C5.0",
-                                         "knn")
+CLASSIFIERS.BASELINE = "OneR"
+CLASSIFIERS.LIST     = c("glm",
+                         "nnet",
+                         "svmLinear",
+                         "C5.0",
+                         "knn")
 
 CLASSIFIERS.FEATURE.SELECTION.METHOD = list( # NULL means internal method
     glm       = "rfFuncs",

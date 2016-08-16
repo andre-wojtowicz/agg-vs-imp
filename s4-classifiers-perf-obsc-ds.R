@@ -2,7 +2,8 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S4.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
+setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S4.FILE),
+             LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 4: classifiers performance on obscured dataset")
 

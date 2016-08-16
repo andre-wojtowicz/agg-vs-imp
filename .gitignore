@@ -21,4 +21,5 @@ vignettes/*.pdf
 
 classifiers/
 datasets/
+logs/
 remote-hosts-ips.txt

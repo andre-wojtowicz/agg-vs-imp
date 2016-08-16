@@ -2,7 +2,8 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S1.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
+setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S1.FILE),
+             LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 1: divide datasets")
 
@@ -34,7 +35,7 @@ for (dataset.name in DATASETS.NAMES)
 
     if (nrow(dataset.class.1) != nrow(dataset.class.2))
     {
-        stop("Classes are imbalanced")
+        stop.script("Classes are imbalanced")
     }
 
     dataset.cut.idx =

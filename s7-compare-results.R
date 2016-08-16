@@ -2,6 +2,7 @@
 
 source("init.R")
 
-setup.logger(LOGGER.OUTPUT.S7.FILE, LOGGER.OVERWRITE.EXISTING.FILES)
+setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S7.FILE),
+             LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 7: compare results")

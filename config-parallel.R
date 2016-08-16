@@ -10,8 +10,9 @@ PARALLEL.LOCAL.METHOD             = switch(Sys.info()[['sysname']],
 
 PARALLEL.LOCAL.NODES              = parallel::detectCores(logical = TRUE)
 PARALLEL.LOCAL.CONNECTION.TIMEOUT = 5
-PARALLEL.LOCAL.SLAVE.OUT.FILE     = lazy(paste0("worker-local-", worker.name,
-                                                 "-", worker.id, ".log"))
+PARALLEL.LOCAL.SLAVE.OUT.FILE     =
+    lazy(file.path(LOGGER.OUTPUT.DIR,
+                   paste0("worker-local-", worker.name, "-", worker.id, ".log")))
 
 # remote
 PARALLEL.REMOTE.METHOD                    = "PSOCK"
