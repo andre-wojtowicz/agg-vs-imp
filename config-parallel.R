@@ -20,16 +20,22 @@ PARALLEL.REMOTE.METHOD                    = "PSOCK"
 PARALLEL.REMOTE.MASTER.IP                 = "192.168.0.1" # ip accessible from slaves
 PARALLEL.REMOTE.MASTER.PORT               = 11000
 PARALLEL.REMOTE.MASTER.CONNECTION.TIMEOUT = 10
-PARALLEL.REMOTE.MASTER.SSH.KEY            = file.path("ssh", "rsa.key")
-PARALLEL.REMOTE.MASTER.SHELL.CMD          = paste0(
-    "ssh -q",
-    " -o ConnectTimeout=", PARALLEL.REMOTE.MASTER.CONNECTION.TIMEOUT,
-    " -o UserKnownHostsFile=/dev/null",
-    " -o StrictHostKeyChecking=no",
-    " -i ", PARALLEL.REMOTE.MASTER.SSH.KEY)
-PARALLEL.REMOTE.MASTER.SLAVES.IPS.FILE.PATH = "remote-hosts-ips.txt"
-PARALLEL.REMOTE.MASTER.SLAVES.IPS           =
-    readLines(PARALLEL.REMOTE.MASTER.SLAVES.IPS.FILE.PATH)
+PARALLEL.REMOTE.MASTER.SSH.PROGRAM        = "ssh" # ssh, ssh.exe, etc.
+PARALLEL.REMOTE.MASTER.SSH.PRIV.KEY       = file.path("ssh", "rsa-priv.key")
+PARALLEL.REMOTE.MASTER.SSH.NULL.DEV       = "/dev/null"
+PARALLEL.REMOTE.MASTER.SSH.STRICT.HOST.KEY.CHECKING = "no"
+PARALLEL.REMOTE.MASTER.SHELL.CMD          =
+paste0(
+  PARALLEL.REMOTE.MASTER.SSH.PROGRAM,
+  " -q",
+  " -o ConnectTimeout=",        PARALLEL.REMOTE.MASTER.CONNECTION.TIMEOUT,
+  " -o UserKnownHostsFile=",    PARALLEL.REMOTE.MASTER.SSH.NULL.DEV,
+  " -o StrictHostKeyChecking=", PARALLEL.REMOTE.MASTER.SSH.STRICT.HOST.KEY.CHECKING,
+  " -i ",                       PARALLEL.REMOTE.MASTER.SSH.PRIV.KEY)
+
+PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH = "remote-connection-list.txt"
+PARALLEL.REMOTE.MASTER.SLAVES.LIST      =
+    readLines(PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH)
 
 PARALLEL.REMOTE.SLAVE.OUT.FILE     = lazy(paste0("worker-remote-", worker.name,
                                                  "-", worker.id, ".log"))

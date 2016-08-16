@@ -30,7 +30,7 @@ cl = if (PARALLEL.USED.METHOD == "LOCAL")
     {
         flog.info("Creating remote PSOCK cluster")
         make.psock.cluster(
-            names              = PARALLEL.REMOTE.MASTER.SLAVES.IPS,
+            names              = PARALLEL.REMOTE.MASTER.SLAVES.LIST,
             connection.timeout = PARALLEL.REMOTE.MASTER.CONNECTION.TIMEOUT,
             master             = PARALLEL.REMOTE.MASTER.IP,
             port               = PARALLEL.REMOTE.MASTER.PORT,

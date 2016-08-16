@@ -22,4 +22,7 @@ vignettes/*.pdf
 classifiers/
 datasets/
 logs/
-remote-hosts-ips.txt
+ssh/
+
+remote-hosts.txt
+remote-connection-list.txt
