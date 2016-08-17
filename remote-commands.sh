@@ -238,7 +238,7 @@ make_remote_connection_list()
             ;;
         "nproc")
             echo "'number of cores' per host" 
-            echo "" > ${CONNECTION_LIST_FILE}
+            if [ -f ${CONNECTION_LIST_FILE} ] ; then rm ${CONNECTION_LIST_FILE}; fi
             while read host; do
                 echo -n "${host} ... "
                 
@@ -246,11 +246,12 @@ make_remote_connection_list()
                 cornum=`ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} '/usr/bin/Rscript -e "cat(parallel::detectCores())"'`
                 ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
                 
-                if ! [[ $cornum =~ '^[0-9]+$' ]] ; then
+                regex='^[0-9]+$'
+                if ! [[ $cornum =~ $regex ]] ; then
                     echo "R error: $cornum"
                 else
                     echo "- $cornum cores"
-                    for i in {1..10}; do echo $cornum >> ${CONNECTION_LIST_FILE}; done
+                    for ((i=1; i<=$cornum; i++)); do echo ${host} >> ${CONNECTION_LIST_FILE}; done
                 fi
             done < ${HOSTS_FILE}
             ;;
@@ -263,7 +264,7 @@ make_remote_connection_list()
 make_remote_connection_list_single() { make_remote_connection_list single; }
 make_remote_connection_list_nproc()  { make_remote_connection_list nproc; }
 
-configure_hosts()
+my_configure_hosts()
 {
     #generate_ssh_keys
     hosts_push_ssh_key
@@ -273,8 +274,26 @@ configure_hosts()
     hosts_install_mro
     #hosts_install_mkl
         #hosts_push_mkl_dump
+    #hosts_install_r_libraries
+        hosts_push_r_libraries_dump
+    make_remote_connection_list_nproc
+        #make_remote_connection_list_single
+}
+
+configure_hosts()
+{
+    generate_ssh_keys
+    hosts_push_ssh_key
+    hosts_push_shell_script
+    hosts_push_project_r_files
+    hosts_install_env
+    hosts_install_mro
+    #hosts_install_mkl
+        #hosts_push_mkl_dump
     hosts_install_r_libraries
         #hosts_push_r_libraries_dump
+    make_remote_connection_list_nproc
+        #make_remote_connection_list_single
 }
 
 for i in "$@"
