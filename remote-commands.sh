@@ -3,7 +3,7 @@
 # working with WMI Rescue - small Linux image based on 
 # Debian distribution; see http://rescue.wmi.amu.edu.pl
 
-MRO_VERSION="3.2.5"
+MRO_VERSION="3.3.0"
 MRO_UBUNTU="14.4"
 SSH_OPTIONS="-o ConnectTimeout=5 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -q"
 SSH_USER="root"
@@ -16,7 +16,7 @@ CONNECTION_LIST_FILE="remote-connection-list.txt"
 DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev"
 SHELL_SCRIPT=$(basename $0)
 
-function generate_ssh_keys
+generate_ssh_keys()
 {
     echo "Generating SSH keys"
     mkdir -p ssh
@@ -24,15 +24,16 @@ function generate_ssh_keys
     mv ${SSH_KEYS_DIR}/${SSH_KEY_PRIV}.pub ${SSH_KEYS_DIR}/${SSH_KEY_PUB}
 }
 
-function install_env
+install_env()
 {
     echo "Installing environment"
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" upgrade
     DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" install ${DEBIAN_PACKAGES_TO_INSTALL}
+    apt-get clean
 }
 
-function install_mro
+install_mro()
 {
     echo "Installing Microsoft R Open"
     # dependency
@@ -44,13 +45,15 @@ function install_mro
     wget https://mran.microsoft.com/install/mro/${MRO_VERSION}/MRO-${MRO_VERSION}-Ubuntu-${MRO_UBUNTU}.x86_64.deb
     gdebi -n MRO-${MRO_VERSION}-Ubuntu-${MRO_UBUNTU}.x86_64.deb
     rm MRO-${MRO_VERSION}-Ubuntu-${MRO_UBUNTU}.x86_64.deb
+    
+    apt-get clean
 }
 
-function install_mkl
+install_mkl()
 {
     echo "Installing Intel MKL"
     wget https://mran.microsoft.com/install/mro/${MRO_VERSION}/RevoMath-${MRO_VERSION}.tar.gz
-    tar -xvzf RevoMath-${MRO_VERSION}.tar.gz
+    tar -xzf RevoMath-${MRO_VERSION}.tar.gz
     cd RevoMath
     sed -i '16,18d' RevoMath.sh
     echo 1 | ./RevoMath.sh
@@ -58,31 +61,31 @@ function install_mkl
     rm -r RevoMath*
 }
 
-function install_r_libraries
+install_r_libraries()
 {
     echo "Installing R libraries"
     mkdir -p ~/.checkpoint
     Rscript init.R # run checkpoint
 }
 
-function dump_r_libraries
+dump_r_libraries()
 {
     echo "Making R libraries dump"
     wd=`pwd`
     cd ~/
-    tar -cvzf $wd/checkpoint.tar.gz .checkpoint/*
+    tar -czf $wd/checkpoint.tar.gz .checkpoint/*
     cd $wd   
 }
 
-function dump_mkl
+dump_mkl()
 {
     echo "Making Intel MKL files dump"
-    tar -cvzf RevoMath.tar.gz /usr/lib64/MRO-${MRO_VERSION}/R-${MRO_VERSION}/lib/R/lib/* /usr/lib64/MRO-${MRO_VERSION}/R-${MRO_VERSION}/lib/R/library/RevoUtilsMath/*
+    tar -czf RevoMath.tar.gz /usr/lib64/MRO-${MRO_VERSION}/R-${MRO_VERSION}/lib/R/lib/* /usr/lib64/MRO-${MRO_VERSION}/R-${MRO_VERSION}/lib/R/library/RevoUtilsMath/*
 }
 
-function slaves_push_ssh_key 
+hosts_push_ssh_key()
 {
-    echo "Pushing SSH keys to slaves"
+    echo "Pushing SSH keys to hosts"
     while read host; do
         echo -n "${host} ... "
         
@@ -106,9 +109,9 @@ function slaves_push_ssh_key
     done < ${HOSTS_FILE}
 }
 
-function slaves_push_r_libraries_dump
+hosts_push_r_libraries_dump()
 {
-    echo "Pushing R libraries dump to slaves"
+    echo "Pushing R libraries dump to hosts"
     while read host; do
         echo -n "${host} ... "
         
@@ -117,16 +120,16 @@ function slaves_push_r_libraries_dump
         ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
         
         echo -n "unpack-file "
-        ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xvzf checkpoint.tar.gz -C ~/; rm checkpoint.tar.gz"
+        ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xzf checkpoint.tar.gz -C ~/; rm checkpoint.tar.gz"
         ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
         
         echo "ok"
     done < ${HOSTS_FILE}
 }
 
-function slaves_push_mkl_dump
+hosts_push_mkl_dump()
 {
-    echo "Pushing Intel MKL files dump to slaves"
+    echo "Pushing Intel MKL files dump to hosts"
     while read host; do
         echo -n "${host} ... "
         
@@ -135,18 +138,18 @@ function slaves_push_mkl_dump
         ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
         
         echo -n "unpack-file "
-        ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xvzf RevoMath.tar.gz -C /; rm RevoMath.tar.gz"
+        ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xzf RevoMath.tar.gz -C /; rm RevoMath.tar.gz"
         ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
         
         echo "ok"
     done < ${HOSTS_FILE}
 }
 
-function slaves_push_project_r_files
+hosts_push_project_r_files()
 {
-    echo "Pushing project R files"
+    echo "Pushing project R files to hosts"
     
-    tar -cvzf project-r-files.tar.gz *.R *.R.user
+    tar -czf project-r-files.tar.gz *.R *.R.user
     
     while read host; do
         echo -n "${host} ... "
@@ -156,7 +159,7 @@ function slaves_push_project_r_files
         ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
         
         echo -n "unpack-file "
-        ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xvzf project-r-files.tar.gz -C ~/; rm project-r-files.tar.gz"
+        ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xzf project-r-files.tar.gz -C ~/; rm project-r-files.tar.gz"
         ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
         
         echo "ok"
@@ -165,9 +168,9 @@ function slaves_push_project_r_files
     rm project-r-files.tar.gz
 }
 
-function slaves_push_shell_script
+hosts_push_shell_script()
 {
-    echo "Pushing shell script"
+    echo "Pushing shell script to hosts"
     while read host; do
         echo -n "${host} ... "
         
@@ -179,57 +182,41 @@ function slaves_push_shell_script
     done < ${HOSTS_FILE}
 }
 
-function slaves_install_env
+hosts_install()
 {
-    echo "Installing environment on slaves"
+    case "$1" in
+        "env")          echo "Installing environment on hosts" ;;
+        "mro")          echo "Installing Microsoft R Open on hosts" ;;
+        "mkl")          echo "Installing Intel MKL on hosts" ;;
+        "r_libraries")  echo "Installing R libraries on hosts" ;;
+        *)              echo "Unknown remote install command"; exit 1
+    esac
+
     while read host; do
         echo -n "${host} ... "
         
-        
-        
-        echo "ok"
+        echo "script-run"
+        { ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "bash ${SHELL_SCRIPT} install_$1 &> install_$1.log" ;
+          echo "[$(date +%T)] ${host} finished, $(jobs -rp | wc -l) hosts running" ; } &
+
     done < ${HOSTS_FILE}
+    
+    echo "Waiting for $(jobs -rp | wc -l) hosts"
+   
+    while true; do
+        if [ $(jobs -rp | wc -l) -eq 0 ] ; then break; fi
+        sleep 1
+    done
 }
 
-function slaves_install_mro
-{
-    echo "Installing Microsoft R Open on slaves"
-    while read host; do
-        echo -n "${host} ... "
-        
-        
-        
-        echo "ok"
-    done < ${HOSTS_FILE}
-}
+hosts_install_env()         { hosts_install env; }
+hosts_install_mro()         { hosts_install mro; }
+hosts_install_mkl()         { hosts_install mkl; }
+hosts_install_r_libraries() { hosts_install r_libraries; }
 
-function slaves_install_mkl
+hosts_power_off()
 {
-    echo "Installing Intel MKL on slaves"
-    while read host; do
-        echo -n "${host} ... "
-        
-        
-        
-        echo "ok"
-    done < ${HOSTS_FILE}
-}
-
-function slaves_install_r_libraries
-{
-    echo "Installing R libraries on slaves"
-    while read host; do
-        echo -n "${host} ... "
-        
-        
-        
-        echo "ok"
-    done < ${HOSTS_FILE}
-}
-
-function slaves_power_off
-{
-    echo "Power off on slaves"
+    echo "Power off on hosts"
     while read host; do
         echo -n "${host} ... "
         
@@ -241,7 +228,46 @@ function slaves_power_off
     done < ${HOSTS_FILE}
 }
 
+make_remote_connection_list()
+{
+    echo -n "Making remote connection list: "
+    case "$1" in
+        "single")
+            echo "one connection per host"
+            cat ${HOSTS_FILE} > ${CONNECTION_LIST_FILE}
+            ;;
+        "nproc")
+            echo "'number of cores' per host" 
+            echo "" > ${CONNECTION_LIST_FILE}
+            while read host; do
+                echo -n "${host} ... "
+                
+                echo -n "rscript "
+                cornum=`ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} '/usr/bin/Rscript -e "cat(parallel::detectCores())"'`
+                ret=$?; if [ $ret -ne 0 ] ; then echo "error $ret"; continue; fi
+                
+                if ! [[ $cornum =~ '^[0-9]+$' ]] ; then
+                    echo "R error: $cornum"
+                else
+                    echo "- $cornum cores"
+                    for i in {1..10}; do echo $cornum >> ${CONNECTION_LIST_FILE}; done
+                fi
+            done < ${HOSTS_FILE}
+            ;;
+        *) 
+            echo "unknown type"
+            exit 2
+    esac
+}
+
+make_remote_connection_list_single() { make_remote_connection_list single; }
+make_remote_connection_list_nproc()  { make_remote_connection_list nproc; }
+
 for i in "$@"
 do
-    $i
+    case "$i" in
+        "hosts_install") ;;
+        "make_remote_connection_list") ;;
+        *) $i
+    esac
 done
