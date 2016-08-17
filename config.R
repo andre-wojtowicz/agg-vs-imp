@@ -14,7 +14,7 @@ USER.INIT.FILE        = "init.R.user"
 
 CHECKPOINT.QUICK.LOAD    = FALSE # if TRUE then skip testing https and checking url
 CHECKPOINT.MRAN.URL      = "https://mran.microsoft.com/"
-CHECKPOINT.SNAPSHOT.DATE = "2016-04-01"
+CHECKPOINT.SNAPSHOT.DATE = "2016-06-01"
 
 # logging system
 

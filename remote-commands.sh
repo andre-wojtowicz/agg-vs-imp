@@ -13,7 +13,7 @@ SSH_KEY_PRIV="rsa-priv.key"
 SSH_KEY_PUB="rsa-pub.key"
 HOSTS_FILE="remote-hosts.txt"
 CONNECTION_LIST_FILE="remote-connection-list.txt"
-DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev"
+DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev libbz2-dev"
 SHELL_SCRIPT=$(basename $0)
 
 generate_ssh_keys()
@@ -74,7 +74,7 @@ dump_r_libraries()
     wd=`pwd`
     cd ~/
     tar -czf $wd/checkpoint.tar.gz .checkpoint/*
-    cd $wd   
+    cd $wd
 }
 
 dump_mkl()
@@ -263,11 +263,25 @@ make_remote_connection_list()
 make_remote_connection_list_single() { make_remote_connection_list single; }
 make_remote_connection_list_nproc()  { make_remote_connection_list nproc; }
 
+configure_hosts()
+{
+    #generate_ssh_keys
+    hosts_push_ssh_key
+    hosts_push_shell_script
+    hosts_push_project_r_files
+    hosts_install_env
+    hosts_install_mro
+    #hosts_install_mkl
+        #hosts_push_mkl_dump
+    hosts_install_r_libraries
+        #hosts_push_r_libraries_dump
+}
+
 for i in "$@"
 do
     case "$i" in
         "hosts_install") ;;
         "make_remote_connection_list") ;;
-        *) $i
+        *) $i; if [ $? -eq 127 ] ; then exit 127; fi
     esac
 done

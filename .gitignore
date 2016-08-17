@@ -26,3 +26,6 @@ ssh/
 
 remote-hosts.txt
 remote-connection-list.txt
+
+checkpoint.tar.gz
+RevoMath.tar.gz
