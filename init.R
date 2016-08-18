@@ -31,7 +31,7 @@ checkpoint(CHECKPOINT.SNAPSHOT.DATE, verbose = TRUE, scanForPackages = TRUE)
 
 library(futile.logger)
 
-flog.threshold(LOGGER.LEVEL)
+invisible(flog.threshold(LOGGER.LEVEL))
 
 if (!dir.exists(LOGGER.OUTPUT.DIR))
 {
