@@ -1,6 +1,6 @@
 # ---- config-parallel ----
 
-PARALLEL.USED.METHOD = "LOCAL" # LOCAL or REMOTE
+PARALLEL.USED.METHOD               = "LOCAL" # LOCAL or REMOTE
 
 # local
 PARALLEL.LOCAL.METHOD              = switch(Sys.info()[['sysname']],
@@ -8,7 +8,7 @@ PARALLEL.LOCAL.METHOD              = switch(Sys.info()[['sysname']],
                                             Linux   = "FORK",
                                             Darwin  = "FORK")
 
-PARALLEL.LOCAL.DETECT.LOGICAL.CPUS = TRUE
+PARALLEL.LOCAL.DETECT.LOGICAL.CPUS = FALSE
 PARALLEL.LOCAL.NODES               =
     parallel::detectCores(logical = PARALLEL.LOCAL.DETECT.LOGICAL.CPUS)
 PARALLEL.LOCAL.CONNECTION.TIMEOUT  = 5

@@ -7,6 +7,11 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S2.FILE),
 
 flog.info("Step 2: learn classifiers")
 
+if (PARALLEL.COMPUTING)
+{
+    source("init-parallel.R")
+}
+
 if (!dir.exists(CLASSIFIERS.DIR))
 {
     dir.create(CLASSIFIERS.DIR)
@@ -48,13 +53,22 @@ for (dataset.name in DATASETS.NAMES)
 
                 flog.info(paste("Feature selection:", fs.method))
 
+                rfe.seeds = vector(mode = "list", length = FEATURE.SELECTION.FOLDS + 1)
+                for (i in 1:FEATURE.SELECTION.FOLDS)
+                {
+                    rfe.seeds[[i]] = sample.int(1000, ncol(dataset.feature.selection) - 1)
+                }
+                rfe.seeds[[FEATURE.SELECTION.FOLDS + 1]] = sample.int(1000, 1)
+
                 fs.results =
                     rfe(dataset.feature.selection[, 1:(ncol(dataset.feature.selection) - 1)],
                         dataset.feature.selection[, ncol(dataset.feature.selection)],
                         sizes = 1:ncol(dataset.feature.selection),
                         rfeControl = rfeControl(functions = eval(as.name(fs.method)),
                                                 method = "cv",
-                                                number = 10))
+                                                number = FEATURE.SELECTION.FOLDS,
+                                                seeds  = rfe.seeds,
+                                                allowParallel = CARET.ALLOW.PARALLEL))
 
                 flog.info(paste("Selected", length(predictors(fs.results)),
                                 "from", ncol(dataset.feature.selection) - 1, "features"))
@@ -114,4 +128,9 @@ for (dataset.name in DATASETS.NAMES)
                                                       used.predictors.row.names)))
 
     flog.info(paste(rep("*", 25), collapse = ""))
+}
+
+if (PARALLEL.COMPUTING)
+{
+    stop.cluster(cl)
 }

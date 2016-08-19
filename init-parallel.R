@@ -98,6 +98,8 @@ clusterSetRNGStream(cl, SEED)
 flog.info("Registering cluster")
 registerDoParallel(cl)
 
+flog.info(paste(rep("*", 25), collapse = ""))
+
 # perform additional custom init
 
 if (file.exists("init-parallel.R.user"))

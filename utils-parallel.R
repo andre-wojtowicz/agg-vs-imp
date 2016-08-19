@@ -78,8 +78,5 @@ stop.cluster = function(cl.to.stop)
 {
     flog.info("Workers shut down")
 
-    clusterEvalQ(cl.to.stop, {
-        flog.info("Worker shut down")
-    })
     stopCluster(cl.to.stop)
 }

@@ -7,6 +7,11 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S0.FILE),
 
 flog.info("Step 0: download datasets")
 
+if (!dir.exists(DATASETS.DIR))
+{
+    dir.create(DATASETS.DIR)
+}
+
 flog.info("Downloading datasets from:")
 flog.info(DATASETS.URL)
 

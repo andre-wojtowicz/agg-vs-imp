@@ -36,8 +36,9 @@ LOGGER.OVERWRITE.EXISTING.FILES = TRUE
 CLASSIFIERS.NAME.PATTERN        = "CLASSIFIER-NAME"
 DATASETS.NAME.PATTERN           = "DATASET-NAME"
 
-# caret library config
+# parallel and caret library config
 
+PARALLEL.COMPUTING              = TRUE
 CARET.ALLOW.PARALLEL            = TRUE
 
 # classifiers used in the experiment
@@ -127,6 +128,10 @@ DATASETS.SIZE.PER.CLASS =
 # obscuration step
 
 OBSCURATION.NO.NAS.FRACTION = 1/3
+
+# feature selection setup
+
+FEATURE.SELECTION.FOLDS     = 10
 
 # nested cross-validation setup
 

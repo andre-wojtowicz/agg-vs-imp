@@ -24,18 +24,33 @@ nested.cross.validation = function(dataset, model.name,
 
     if (!is.null(model.grid))
     {
+        train.seeds.ncv = vector(mode = "list", length = no.folds)
+        for (i in 1:no.folds)
+        {
+            inner.seeds = vector(mode = "list", length = no.folds + 1)
+            for (i in 1:no.folds)
+            {
+                inner.seeds[[i]] = sample.int(1000, nrow(model.grid))
+            }
+            inner.seeds[[no.folds + 1]] = sample.int(1000, 1)
+
+            train.seeds.ncv[[i]] = inner.seeds
+        }
+
         for (i in 1:no.folds)
         {
             flog.info(paste("Fold", i))
 
-            folds.inner = idx.outer[setdiff(1:no.folds, i)]
-            dataset.inner = dataset[as.numeric(unlist(folds.inner)), ]
+            folds.inner       = idx.outer[setdiff(1:no.folds, i)]
+            dataset.inner     = dataset[as.numeric(unlist(folds.inner)), ]
+            train.seeds.inner = train.seeds.ncv[[i]]
 
             idx.inner = caret::createFolds(dataset.inner$Class,
                                            k = no.folds)
 
             train.control = caret::trainControl(method = "cv",
                                                 index  = idx.inner,
+                                                seeds  = train.seeds.inner,
                                                 allowParallel = allow.parallel)
 
             training.arguments = merge(
@@ -66,9 +81,18 @@ nested.cross.validation = function(dataset, model.name,
 
     flog.info("Training final model")
 
-    train.control = caret::trainControl(method = "cv",
-                                        index  = idx.outer,
+    train.seeds = vector(mode = "list", length = no.folds + 1)
+    for (i in 1:no.folds)
+    {
+        train.seeds[[i]] =
+            sample.int(1000, ifelse(!is.null(model.grid), nrow(model.grid), 1))
+    }
+    train.seeds[[no.folds + 1]] = sample.int(1000, 1)
+
+    train.control = caret::trainControl(method        = "cv",
+                                        index         = idx.outer,
                                         classProbs    = TRUE,
+                                        seeds         = train.seeds,
                                         allowParallel = allow.parallel)
 
     training.arguments = merge(
