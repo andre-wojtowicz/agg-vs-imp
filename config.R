@@ -93,7 +93,7 @@ CLASSIFIERS.BASIC.ATTRIBUTES = list( # NULL means no need to set extra attribute
 # datasets used in the experiment
 
 DATASETS.URL =
-    "https://github.com/andre-wojtowicz/uci-ml-to-r/releases/download/v1.1/data-collection.zip"
+    "https://github.com/andre-wojtowicz/uci-ml-to-r/releases/download/v1.2/data-collection.zip"
 
 DATASETS.NAMES = c("bank-marketing",
                    "census-income",

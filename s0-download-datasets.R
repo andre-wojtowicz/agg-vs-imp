@@ -12,7 +12,7 @@ if (!dir.exists(DATASETS.DIR))
     dir.create(DATASETS.DIR)
 }
 
-flog.info("Downloading datasets from:")
+flog.info("Downloading datasets:")
 flog.info(DATASETS.URL)
 
 temp.dir  = tempdir()
@@ -23,14 +23,10 @@ content   = getBinaryURL(DATASETS.URL,
 
 writeBin(content, temp.file)
 
-datasets.zip.paths = as.character(
-                        sapply(DATASETS.NAMES,
-                            function(dataset.name){
-                                file.path("data-collection", dataset.name,
-                                          "preprocessed", "dataset.rds")}))
+datasets.files = paste0(DATASETS.NAMES, ".rds")
 
 unzip(zipfile = temp.file,
-      files   = datasets.zip.paths,
+      files   = datasets.files,
       exdir   = temp.dir)
 
 unlink(temp.file)
@@ -40,8 +36,7 @@ for (dataset.name in DATASETS.NAMES)
     flog.info(paste("Dataset:", dataset.name))
 
     dataset.zip.file.path =
-        file.path(temp.dir, datasets.zip.paths[which(DATASETS.NAMES ==
-                                                     dataset.name)])
+        file.path(temp.dir, datasets.files[which(DATASETS.NAMES == dataset.name)])
 
     dataset.destination.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.ORIGIN)
@@ -60,7 +55,5 @@ for (dataset.name in DATASETS.NAMES)
 }
 
 flog.debug("Temp files and directories cleanup")
-
-removeDirectory(file.path(temp.dir, "data-collection"), recursive = TRUE)
 
 unlink(temp.dir)

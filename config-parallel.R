@@ -38,7 +38,8 @@ paste0(
 
 PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH = "remote-connection-list.txt"
 PARALLEL.REMOTE.MASTER.SLAVES.LIST      =
-    readLines(PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH)
+    tryCatch({suppressWarnings(readLines(PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH))},
+             error = function(e) NULL)
 
 PARALLEL.REMOTE.SLAVE.OUT.FILE     = lazy(paste0("worker-remote-", worker.name,
                                                  "-", worker.id, ".log"))
