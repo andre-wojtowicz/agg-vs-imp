@@ -3,16 +3,19 @@
 PARALLEL.USED.METHOD = "LOCAL" # LOCAL or REMOTE
 
 # local
-PARALLEL.LOCAL.METHOD             = switch(Sys.info()[['sysname']],
-                                           Windows = "PSOCK",
-                                           Linux   = "FORK",
-                                           Darwin  = "FORK")
+PARALLEL.LOCAL.METHOD              = switch(Sys.info()[['sysname']],
+                                            Windows = "PSOCK",
+                                            Linux   = "FORK",
+                                            Darwin  = "FORK")
 
-PARALLEL.LOCAL.NODES              = parallel::detectCores(logical = TRUE)
-PARALLEL.LOCAL.CONNECTION.TIMEOUT = 5
-PARALLEL.LOCAL.SLAVE.OUT.FILE     =
+PARALLEL.LOCAL.DETECT.LOGICAL.CPUS = TRUE
+PARALLEL.LOCAL.NODES               =
+    parallel::detectCores(logical = PARALLEL.LOCAL.DETECT.LOGICAL.CPUS)
+PARALLEL.LOCAL.CONNECTION.TIMEOUT  = 5
+PARALLEL.LOCAL.SLAVE.OUT.FILE      =
     lazy(file.path(LOGGER.OUTPUT.DIR,
                    paste0("worker-local-", worker.name, "-", worker.id, ".log")))
+PARALLEL.LOCAL.DISABLE.MKL.THREADS = TRUE
 
 # remote
 PARALLEL.REMOTE.METHOD                    = "PSOCK"
@@ -44,6 +47,8 @@ PARALLEL.REMOTE.SLAVE.RSCRIPT.PATH = "/usr/bin/Rscript"
 PARALLEL.REMOTE.SLAVE.HOMOGENEOUS  = TRUE
 PARALLEL.REMOTE.SLAVE.METHODS      = TRUE
 PARALLEL.REMOTE.SLAVE.USEXDR       = TRUE
+
+PARALLEL.REMOTE.SLAVE.DISABLE.MKL.THREADS = TRUE
 
 # perform additional custom config
 

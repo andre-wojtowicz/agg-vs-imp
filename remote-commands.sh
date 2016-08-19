@@ -16,24 +16,21 @@ SSH_KEY_PUB="rsa-pub.key"
 HOSTS_FILE="remote-hosts.txt"
 CONNECTION_LIST_FILE="remote-connection-list.txt"
 DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev libbz2-dev"
+REMOTE_DETECT_LOGICAL_CPUS="FALSE"
 
-# variables
 SHELL_SCRIPT=$(basename $0)
+LOG_STEPS="logs/${SHELL_SCRIPT%.*}".log
 HOSTS_ARRAY=()
-[[ -w /tmp ]] && echo 0 > /tmp/command_error.$$
-
-# read hosts from file or stdin
-
-
-if [ -t 0 ]; then
-    readarray -t HOSTS_ARRAY < $HOSTS_FILE
-else
-    while read -r host ; do
-        HOSTS_ARRAY+=("$host")
-    done
-fi
 
 # messaging
+
+report_error()
+{
+    echo $1 > /tmp/command_error.$$
+}
+
+[[ -w /tmp ]] && report_error 0
+
 # https://stackoverflow.com/a/5196220
 # modified for Debian
 
@@ -109,7 +106,7 @@ next()
     [[ $STEP_OK -eq 0 ]]  && printf '%s%s' "$CONSOLE_GREEN" "[ OK ]" "$CONSOLE_NORMAL" || printf '%s%s' "$CONSOLE_RED" "[FAIL]" "$CONSOLE_NORMAL"
     echo
     
-    [[ $STEP_OK -ne 0 ]] && echo 1 > /tmp/command_error.$$
+    [[ $STEP_OK -ne 0 ]] && report_error 1
 
     return $STEP_OK
 }
@@ -234,19 +231,11 @@ dump_r_libraries()
     check_if_command_error
 }
 
-dump_mkl()
-{
-    step "Making Intel MKL files dump"
-    try tar -czf RevoMath.tar.gz /usr/lib64/MRO-${MRO_VERSION}/R-${MRO_VERSION}/lib/R/lib/* /usr/lib64/MRO-${MRO_VERSION}/R-${MRO_VERSION}/lib/R/library/RevoUtilsMath/*
-    next
-    check_if_command_error
-}
-
 hosts_push_ssh_key()
 {
     info "Pushing SSH keys to hosts"
     for host in "${HOSTS_ARRAY[@]}"; do
-        step "${host}"
+        step "-- ${host}"
         try sshpass -p ${SSHPASS_PWD} ssh ${SSH_OPTIONS} ${SSH_USER}@${host} 'mkdir -p ~/.ssh'
         try sshpass -p ${SSHPASS_PWD} scp ${SSH_OPTIONS} ${SSH_KEYS_DIR}/${SSH_KEY_PUB} ${SSH_USER}@${host}:~/.ssh
         try sshpass -p ${SSHPASS_PWD} ssh ${SSH_OPTIONS} ${SSH_USER}@${host} "cat ~/.ssh/${SSH_KEY_PUB} >> ~/.ssh/authorized_keys"
@@ -260,21 +249,9 @@ hosts_push_r_libraries_dump()
 {
     info "Pushing R libraries dump to hosts"
     for host in "${HOSTS_ARRAY[@]}"; do
-        step "${host}"
+        step "-- ${host}"
         try scp ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} checkpoint.tar.gz ${SSH_USER}@${host}:~/
         try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xzf checkpoint.tar.gz -C ~/; rm checkpoint.tar.gz"
-        next
-    done
-    check_if_command_error
-}
-
-hosts_push_mkl_dump()
-{
-    info "Pushing Intel MKL files dump to hosts"
-    for host in "${HOSTS_ARRAY[@]}"; do
-        step "${host}"
-        try scp ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} RevoMath.tar.gz ${SSH_USER}@${host}:~/
-        try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xzf RevoMath.tar.gz -C /; rm RevoMath.tar.gz"
         next
     done
     check_if_command_error
@@ -284,7 +261,7 @@ hosts_push_project_r_files()
 {
     info "Pushing project R files to hosts"
     for host in "${HOSTS_ARRAY[@]}"; do
-        step "${host}"
+        step "-- ${host}"
         try scp ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} project-r-files.tar.gz ${SSH_USER}@${host}:~/
         try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "tar -xzf project-r-files.tar.gz -C ~/; rm project-r-files.tar.gz"
         next
@@ -296,7 +273,7 @@ hosts_push_shell_script()
 {
     info "Pushing shell script to hosts"
     for host in "${HOSTS_ARRAY[@]}"; do
-        step "${host}"
+        step "-- ${host}"
         try scp ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SHELL_SCRIPT} ${SSH_USER}@${host}:~/
         try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "touch ${HOSTS_FILE}"
         next
@@ -311,25 +288,25 @@ hosts_install()
         "mro")          info "Installing Microsoft R Open on hosts" ;;
         "mkl")          info "Installing Intel MKL on hosts" ;;
         "r_libraries")  info "Installing R libraries on hosts" ;;
-        *)              fail "Unknown remote install command"; echo 1 > /tmp/command_error.$$; check_if_command_error
+        *)              fail "Unknown remote install command"; report_error 1; check_if_command_error
     esac
 
     for host in "${HOSTS_ARRAY[@]}"; do
-        info "Invoking ${host}"
+        info "-- Invoking ${host}"
         
         {   ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "bash ${SHELL_SCRIPT} install_$1 &> install_$1.log" ;
             endcode=$?
             if [ $endcode -eq 0 ] ; then
-                success "${host} finished, $(jobs -rp | wc -l) hosts running"
+                success "-- ${host} finished, $(jobs -rp | wc -l) hosts running"
             else
-                fail "${host} finished, $(jobs -rp | wc -l) hosts running"
-                echo 1 > /tmp/command_error.$$
+                fail "-- ${host} finished, $(jobs -rp | wc -l) hosts running"
+                report_error 1
             fi
         } &
 
     done
     
-    info "Waiting for $(jobs -rp | wc -l) hosts"
+    info "- Waiting for $(jobs -rp | wc -l) hosts"
    
     while true; do
         if [ $(jobs -rp | wc -l) -eq 0 ] ; then break; fi
@@ -348,7 +325,7 @@ hosts_power_off()
 {
     info "Power off on hosts"
     for host in "${HOSTS_ARRAY[@]}"; do
-        step "${host}"
+        step "-- ${host}"
         try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "poweroff"
         next
     done
@@ -370,21 +347,22 @@ make_remote_connection_list()
         "nproc")
             info "'number of cores' per host" 
             for host in "${HOSTS_ARRAY[@]}"; do
-                step "${host}"
-                cornum=`try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} '/usr/bin/Rscript -e "cat(parallel::detectCores())"'`
+                step "-- ${host}"
+                cornum=`try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} '/usr/bin/Rscript -e "cat(parallel::detectCores(logical = ${REMOTE_DETECT_LOGICAL_CPUS}))"'`
                 
                 regex='^[0-9]+$'
                 if ! [[ $cornum =~ $regex ]] ; then
                     try false
                 else
                     for ((i=1; i<=$cornum; i++)); do try echo ${host} >> ${CONNECTION_LIST_FILE}; done
+                    echo -n "($cornum cores)   "
                 fi
                 next
             done
             ;;
         *) 
             fail "unknown type"
-            echo 1 > /tmp/command_error.$$
+            report_error 1
     esac
     check_if_command_error
 }
@@ -392,23 +370,50 @@ make_remote_connection_list()
 make_remote_connection_list_single() { make_remote_connection_list single; }
 make_remote_connection_list_nproc()  { make_remote_connection_list nproc; }
 
-see_install_log()
-{
-    step "Checking log on $2"
-    echo
-    try ssh ${SSH_OPTIONS/-q/} -o LogLevel=error -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@$2 "cat install_$1.log"
-    next
+hosts_check_install_log()
+{    
+    info "Checking install log on hosts"
+    for host in "${HOSTS_ARRAY[@]}"; do
+        step "-- ${host}"
+        echo
+        try ssh ${SSH_OPTIONS/-q/} -o LogLevel=error -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "cat install_$1.log"
+        next
+    done
     check_if_command_error
 }
 
-see_install_log_env()         { see_install_log env $1; }
-see_install_log_mro()         { see_install_log mro $1; }
-see_install_log_mkl()         { see_install_log mkl $1; }
-see_install_log_r_libraries() { see_install_log r_libraries $1; }
+hosts_check_install_log_env()         { hosts_check_install_log env; }
+hosts_check_install_log_mro()         { hosts_check_install_log mro; }
+hosts_check_install_log_mkl()         { hosts_check_install_log mkl; }
+hosts_check_install_log_r_libraries() { hosts_check_install_log r_libraries; }
+
+hosts_check_worker_log()
+{
+    info "Checking worker log on hosts"
+    for host in "${HOSTS_ARRAY[@]}"; do
+        step "-- ${host}"
+        echo
+        try ssh ${SSH_OPTIONS/-q/} -o LogLevel=error -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "for f in worker-remote-*.log; do echo \$f; cat -n \$f; done"
+        next
+    done
+    check_if_command_error
+}
+
+hosts_clean_worker_log()
+{
+    info "Cleaning workers logs"
+    for host in "${HOSTS_ARRAY[@]}"; do
+        step "-- ${host}"
+        try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "rm -f worker-remote-*.log"
+        next
+    done
+    check_if_command_error
+}
 
 check_if_command_error()
 {
-    [[ $(< /tmp/command_error.$$) -ne 0 ]] && { warn "Stopping script execution"; rm -f /tmp/command_error.$$; exit 1; }
+    errcode=$(< /tmp/command_error.$$)
+    [[ $errcode -ne 0 ]] && { warn "Stopping script execution"; rm -f /tmp/command_error.$$; exit $errcode; }
 }
 
 my_configure_hosts()
@@ -421,7 +426,6 @@ my_configure_hosts()
     hosts_install_env
     hosts_install_mro
     #hosts_install_mkl
-        #hosts_push_mkl_dump
     #hosts_install_r_libraries
         hosts_push_r_libraries_dump
     make_remote_connection_list_nproc
@@ -438,36 +442,42 @@ configure_hosts()
     hosts_install_env
     hosts_install_mro
     #hosts_install_mkl
-        #hosts_push_mkl_dump
     hosts_install_r_libraries
         #hosts_push_r_libraries_dump
     make_remote_connection_list_nproc
         #make_remote_connection_list_single
 }
 
+# read hosts from file or stdin
+
+if [ -t 0 ]; then
+    if [ ! -f "$HOSTS_FILE" ]
+    then
+        fail "Hosts file $HOSTS_FILE does not exists"
+        report_error 74
+        check_if_command_error
+    fi
+    readarray -t HOSTS_ARRAY < $HOSTS_FILE
+else
+    while read -r host ; do
+        HOSTS_ARRAY+=("$host")
+    done
+fi
+
+info "Working with ${#HOSTS_ARRAY[@]} hosts"
+
 # read arguments as commands
 
 for i in "$@"
 do
     case "$i" in
-        "hosts_install"|"see_install_log"|"make_remote_connection_list"|"info"|"fail"|"success"|"warn"|"next"|"try"|"step") ;;
+        "hosts_install"|"hosts_check_install_log"|"make_remote_connection_list"|"info"|"fail"|"success"|"warn"|"next"|"try"|"step") ;;
         *) 
             if [ "$(type -t $i)" = "function" ]; then 
-                if [[ $i =~ ^see_install_log_.*$ ]]; then 
-                    if [[ $# -eq 2 ]]; then
-                        $i $2
-                        exit
-                    else
-                        info "Usage:"
-                        info "   ./$SHELL_SCRIPT $i [host name or ip]"
-                        echo 1 > /tmp/command_error.$$
-                    fi
-                else 
-                    $i
-                fi
+                $i
             else
                 fail "Command $i not found"
-                echo 127 > /tmp/command_error.$$
+                report_error 127
             fi
     esac
     
