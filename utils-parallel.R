@@ -2,9 +2,19 @@ make.psock.cluster = function(names, connection.timeout, ...)
 {
     if (is.numeric(names))
     {
-        names = as.integer(names[1L])
+        names = as.integer(names[1])
+        if (is.na(names) || names < 2)
+        {
+            stop.script("Number of workers must be at least 2")
+        }
         names = rep("localhost", names)
+    } else if (is.character(names)) {
+        if (length(names) < 2)
+        {
+            stop.script("Number of hosts must be at least 2")
+        }
     }
+
     parallel:::.check_ncores(length(names))
     options = parallel:::addClusterOptions(parallel:::defaultClusterOptions,
                                             list(...))
@@ -74,9 +84,9 @@ make.psock.cluster = function(names, connection.timeout, ...)
     cl.filtered
 }
 
-stop.cluster = function(cl.to.stop)
+stop.cluster = function(cl.to.stop = cl)
 {
     flog.info("Workers shut down")
-
+    registerDoSEQ()
     stopCluster(cl.to.stop)
 }

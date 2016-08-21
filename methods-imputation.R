@@ -1,4 +1,4 @@
-imputation.median.mode = function(data, seed)
+imputation.median.mode = function(data, seed, parallel.computing)
 {
     colnames.ord.factor = names(which(sapply(data, is.ordered)))
 
@@ -12,19 +12,24 @@ imputation.median.mode = function(data, seed)
                                  simplify = F))$data
 }
 
-imputation.random.forest = function(data, seed)
+imputation.random.forest = function(data, seed, parallel.computing)
 {
     set.seed(seed)
 
+    par.val = ifelse(parallel.computing, "forests", "no")
+
     suppressWarnings(
         capture.output(
-            data.new <- missForest::missForest(droplevels(data)[, -ncol(data)])$ximp
+            data.new <- missForest::missForest(droplevels(data)[, -ncol(data)],
+                                               maxiter     = 10,
+                                               ntree       = 200,
+                                               parallelize = par.val)$ximp
         ))
 
     cbind(data.new, data[ncol(data)])
 }
 
-imputation.mice = function(data, seed)
+imputation.mice = function(data, seed, parallel.computing)
 {
     methods.for.predictors =
         sapply(head(colnames(data), ncol(data) - 1),

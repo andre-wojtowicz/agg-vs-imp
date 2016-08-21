@@ -140,6 +140,12 @@ NCV.PREPROCESSING.METHODS  = "range"
 NCV.PERFORMANCE.SELECTOR   = "Accuracy"
 NCV.PERFORMANCE.MAXIMIZE   = TRUE
 
+# imputation
+
+IMPUTATION.METHODS = c("median/mode",
+                       "random forest",
+                       "chained equations")
+
 # optimization setup when calculating interval predictions
 
 # possible standard numeric optimization methods:
