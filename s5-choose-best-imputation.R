@@ -87,7 +87,7 @@ for (dataset.name in DATASETS.NAMES)
 
     if (!file.exists(classifier.imputation.model.file.path) | OVERWRITE.OUTPUT.FILES)
     {
-        models = list()
+        models           = list()
         datasets.imputed = list()
 
         for (model.name in CLASSIFIERS.LIST)

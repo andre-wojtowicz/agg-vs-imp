@@ -2,14 +2,17 @@ imputation.median.mode = function(data, seed, parallel.computing.enabled)
 {
     colnames.ord.factor = names(which(sapply(data, is.ordered)))
 
-    mlr::impute(data,
-                target  = tail(colnames(data), 1),
-                classes = list(numeric   = mlr::imputeMedian(),
-                               integer   = mlr::imputeMedian(),
-                               factor    = mlr::imputeMode()),
-                cols    = sapply(colnames.ord.factor,
-                                 function(x){ x = mlr::imputeMode() },
-                                 simplify = F))$data
+    data.new =
+        mlr::impute(data,
+                    target  = tail(colnames(data), 1),
+                    classes = list(numeric   = mlr::imputeMedian(),
+                                   integer   = mlr::imputeMedian(),
+                                   factor    = mlr::imputeMode()),
+                    cols    = sapply(colnames.ord.factor,
+                                     function(x){ x = mlr::imputeMode() },
+                                     simplify = F))$data
+
+    list(data.new)
 }
 
 imputation.random.forest = function(data, seed, parallel.computing.enabled)
@@ -35,12 +38,13 @@ imputation.random.forest = function(data, seed, parallel.computing.enabled)
                                                parallelize = par.val)$ximp
         ))
 
-    cbind(data.new, data[ncol(data)])
+    data.new = cbind(data.new, data[ncol(data)])
+    list(data.new)
 }
 
 imputation.mice = function(data, seed, parallel.computing.enabled)
 {
-    methods.for.predictors =
+    mice.methods.for.predictors =
         sapply(head(colnames(data), ncol(data) - 1),
             function(x){
                 y <- data[[x]]
@@ -66,23 +70,52 @@ imputation.mice = function(data, seed, parallel.computing.enabled)
 
     set.seed(seed)
 
-    data.new =
-        mice::complete(mice::mice(droplevels(data)[, -ncol(data)],
-                                  m = 1, maxit = 5,
-                                  printFlag = FALSE,
-                                  method = methods.for.predictors,
-                                  defaultMethod =
-                                      c("pmm", # numeric
-                                        "logreg", # binary, factor with 2 lvls
-                                        "cart", # unordered factor with > 2 lvls
-                                        "cart"), # ordered factor with > 2 lvls
-                                  seed = seed),
-                       action = 1)
+    mice.no.imp = 5
+    mice.maxit  = 1
+    mice.data   = droplevels(data)[, -ncol(data)]
+    mice.default.methods = c("pmm", # numeric
+                             "logreg", # binary, factor with 2 lvls
+                             "cart", # unordered factor with > 2 lvls
+                             "cart") # ordered factor with > 2 lvls
 
-    for (colname in colnames(data.new))
+    data.mids = if (parallel.computing.enabled)
     {
-        attr(data.new[[colname]], "contrasts") = NULL
+        foreach::foreach(no = 1:mice.no.imp,
+                         .combine = ibind,
+                         #.export = c("mice.data", "mice.maxit",
+                         #            "mice.methods.for.predictors",
+                         #            "mice.default.methods"),
+                         .packages = "mice") %dopar%
+        {
+            mice::mice(data          = mice.data,
+                       m             = 1,
+                       maxit         = mice.maxit,
+                       printFlag     = FALSE,
+                       method        = mice.methods.for.predictors,
+                       defaultMethod = mice.default.methods)#,
+                       #seed          = seed)
+        }
+    } else {
+        mice::mice(data          = mice.data,
+                   m             = mice.no.imp,
+                   maxit         = mice.maxit,
+                   printFlag     = FALSE,
+                   method        = mice.methods.for.predictors,
+                   defaultMethod = mice.default.methods,
+                   seed          = seed)
     }
 
-    cbind(data.new, data[ncol(data)])
+    data.new = lapply(1:mice.no.imp, function(i){mice::complete(data.mids, i)})
+
+    for (i in 1:mice.no.imp)
+    {
+        for (colname in colnames(data.new))
+        {
+            attr(data.new[[i]][[colname]], "contrasts") = NULL
+        }
+
+        data.new[[i]] = cbind(data.new[[i]], data[ncol(data)])
+    }
+
+    data.new
 }

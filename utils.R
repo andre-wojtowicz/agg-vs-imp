@@ -162,7 +162,9 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
 {
     set.seed(seed)
 
-    idx.cv = caret::createFolds(1:nrow(datasets[[1]][[1]]),
+    no.imp.datasets = length(datasets[[1]][[1]]) # treat as multiple imputation
+
+    idx.cv = caret::createFolds(y = 1:nrow(datasets[[1]][[1]][[1]]),
                                 k = no.folds)
 
     which.function = ifelse(performance.maximize, which.max, which.min)
@@ -181,27 +183,40 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
         perf.measures =
             apply(params.grid, 1, function(ids)
             {
-                dataset.train =
-                    datasets[[ids[2]]][[ids[1]]][unname(unlist(idx.train)), ]
+                datasets.train = sapply(1:no.imp.datasets, function(imp.i) {
+                    datasets[[ids[2]]][[ids[1]]][[imp.i]][unname(unlist(idx.train)), ]},
+                    simplify = F)
+
                 model         = models[[ids[2]]]
 
                 predictions =
-                    suppressWarnings(stats::predict(model, dataset.train))
+                    suppressWarnings(lapply(datasets.train, function(ds.train)
+                        {stats::predict(model, ds.train)}))
+
+                predictions.unified = sapply(1:nrow(datasets.train[[1]]), function(row.id){
+                    names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
+
                 cf.matrix =
-                  caret::confusionMatrix(predictions,
-                                         dataset.train[, ncol(dataset.train)])
+                  caret::confusionMatrix(predictions.unified,
+                                         datasets.train[[1]][, ncol(datasets.train[[1]])])
                 cf.matrix$overall[[performance.selector]]
             })
 
         best.id = which.function(perf.measures)
 
-        dataset.test =
-            datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]][unname(unlist(idx.test)), ]
+        datasets.test = sapply(1:no.imp.datasets, function(imp.i) {
+            datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]][[imp.i]][unname(unlist(idx.test)), ] },
+            simplify = F)
         model        = models[[params.grid[best.id, 2]]]
 
-        predictions = suppressWarnings(stats::predict(model, dataset.test))
-        cf.matrix   = caret::confusionMatrix(predictions,
-                                             dataset.test[, ncol(dataset.test)])
+        predictions = suppressWarnings(lapply(datasets.test, function(ds.test){
+            stats::predict(model, ds.test)}))
+
+        predictions.unified = sapply(1:nrow(datasets.test[[1]]), function(row.id){
+            names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
+
+        cf.matrix   = caret::confusionMatrix(predictions.unified,
+                                             datasets.test[[1]][, ncol(datasets.test[[1]])])
 
         folds.performances = rbind(folds.performances,
                                    data.frame(t(c(cf.matrix$overall,
@@ -214,12 +229,20 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
     perf.measures =
         apply(params.grid, 1, function(ids)
         {
-            dataset = datasets[[ids[2]]][[ids[1]]]
+            datasets.final = sapply(1:no.imp.datasets, function(imp.i) {
+                datasets[[ids[2]]][[ids[1]]][[imp.i]]},
+                simplify = F)
+
             model   = models[[ids[2]]]
 
-            predictions = suppressWarnings(stats::predict(model, dataset))
-            cf.matrix   = caret::confusionMatrix(predictions,
-                                                 dataset[, ncol(dataset)])
+            predictions = suppressWarnings(lapply(datasets.final, function(ds.final){
+                stats::predict(model, ds.final)}))
+
+            predictions.unified = sapply(1:nrow(datasets.final[[1]]), function(row.id){
+                names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
+
+            cf.matrix   = caret::confusionMatrix(predictions.unified,
+                                                 datasets.final[[1]][, ncol(datasets.final[[1]])])
             cf.matrix$overall[[performance.selector]]
         })
 
