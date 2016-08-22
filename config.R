@@ -36,10 +36,9 @@ LOGGER.OVERWRITE.EXISTING.FILES = TRUE
 CLASSIFIERS.NAME.PATTERN        = "CLASSIFIER-NAME"
 DATASETS.NAME.PATTERN           = "DATASET-NAME"
 
-# parallel and caret library config
+# parallel computing config
 
-PARALLEL.COMPUTING              = TRUE
-CARET.ALLOW.PARALLEL            = TRUE
+PARALLEL.COMPUTING.ENABLED      = TRUE
 
 # classifiers used in the experiment
 

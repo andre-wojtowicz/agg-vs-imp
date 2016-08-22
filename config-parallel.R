@@ -1,6 +1,7 @@
 # ---- config-parallel ----
 
 PARALLEL.USED.METHOD               = "LOCAL" # LOCAL or REMOTE
+PARALLEL.DISABLE.MKL.THREADS       = TRUE
 
 # local
 PARALLEL.LOCAL.METHOD              = switch(Sys.info()[['sysname']],
@@ -8,14 +9,11 @@ PARALLEL.LOCAL.METHOD              = switch(Sys.info()[['sysname']],
                                             Linux   = "FORK",
                                             Darwin  = "FORK")
 
-PARALLEL.LOCAL.DETECT.LOGICAL.CPUS = FALSE
-PARALLEL.LOCAL.NODES               =
-    parallel::detectCores(logical = PARALLEL.LOCAL.DETECT.LOGICAL.CPUS)
+PARALLEL.LOCAL.NODES               = parallel::detectCores(logical = FALSE)
 PARALLEL.LOCAL.CONNECTION.TIMEOUT  = 5
 PARALLEL.LOCAL.SLAVE.OUT.FILE      =
     lazy(file.path(LOGGER.OUTPUT.DIR,
                    paste0("worker-local-", worker.name, "-", worker.id, ".log")))
-PARALLEL.LOCAL.DISABLE.MKL.THREADS = TRUE
 
 # remote
 PARALLEL.REMOTE.METHOD                    = "PSOCK"
@@ -37,9 +35,6 @@ paste0(
   " -i ",                       PARALLEL.REMOTE.MASTER.SSH.PRIV.KEY)
 
 PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH = "remote-connection-list.txt"
-PARALLEL.REMOTE.MASTER.SLAVES.LIST      =
-    tryCatch({suppressWarnings(readLines(PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH))},
-             error = function(e) NULL)
 
 PARALLEL.REMOTE.SLAVE.OUT.FILE     = lazy(paste0("worker-remote-", worker.name,
                                                  "-", worker.id, ".log"))
@@ -48,8 +43,6 @@ PARALLEL.REMOTE.SLAVE.RSCRIPT.PATH = "/usr/bin/Rscript"
 PARALLEL.REMOTE.SLAVE.HOMOGENEOUS  = TRUE
 PARALLEL.REMOTE.SLAVE.METHODS      = TRUE
 PARALLEL.REMOTE.SLAVE.USEXDR       = TRUE
-
-PARALLEL.REMOTE.SLAVE.DISABLE.MKL.THREADS = TRUE
 
 # perform additional custom config
 

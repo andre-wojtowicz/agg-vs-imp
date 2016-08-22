@@ -7,7 +7,7 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S2.FILE),
 
 flog.info("Step 2: learn classifiers")
 
-if (PARALLEL.COMPUTING)
+if (PARALLEL.COMPUTING.ENABLED)
 {
     source("init-parallel.R")
 }
@@ -68,7 +68,7 @@ for (dataset.name in DATASETS.NAMES)
                                                 method = "cv",
                                                 number = FEATURE.SELECTION.FOLDS,
                                                 seeds  = rfe.seeds,
-                                                allowParallel = CARET.ALLOW.PARALLEL))
+                                                allowParallel = PARALLEL.COMPUTING.ENABLED))
 
                 flog.info(paste("Selected", length(predictors(fs.results)),
                                 "from", ncol(dataset.feature.selection) - 1, "features"))
@@ -93,7 +93,7 @@ for (dataset.name in DATASETS.NAMES)
                                             NCV.PREPROCESSING.METHODS,
                                             NCV.PERFORMANCE.SELECTOR,
                                             NCV.PERFORMANCE.MAXIMIZE,
-                                            CARET.ALLOW.PARALLEL, SEED)
+                                            PARALLEL.COMPUTING.ENABLED, SEED)
 
             if (model.name == "OneR")
             {
@@ -130,7 +130,7 @@ for (dataset.name in DATASETS.NAMES)
     flog.info(paste(rep("*", 25), collapse = ""))
 }
 
-if (PARALLEL.COMPUTING)
+if (PARALLEL.COMPUTING.ENABLED)
 {
-    stop.cluster(cl)
+    stop.cluster()
 }

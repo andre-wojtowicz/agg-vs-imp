@@ -9,13 +9,6 @@ source("utils-parallel.R")
 
 cl = if (PARALLEL.USED.METHOD == "LOCAL")
 {
-    if (PARALLEL.LOCAL.DISABLE.MKL.THREADS)
-    {
-        try({setMKLthreads(1);
-             flog.info("Set MKL threads to 1 on master")},
-            silent = TRUE)
-    }
-
     if (PARALLEL.LOCAL.METHOD == "PSOCK")
     {
         flog.info("Creating local PSOCK cluster")
@@ -36,8 +29,17 @@ cl = if (PARALLEL.USED.METHOD == "LOCAL")
     if (PARALLEL.REMOTE.METHOD == "PSOCK")
     {
         flog.info("Creating remote PSOCK cluster")
+
+        if (!file.exists(PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH))
+        {
+            stop.script(paste("Unable to read list of remote hosts from",
+                              PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH))
+        }
+
+        slaves.list = readLines(PARALLEL.REMOTE.MASTER.SLAVES.FILE.PATH)
+
         make.psock.cluster(
-            names              = PARALLEL.REMOTE.MASTER.SLAVES.LIST,
+            names              = slaves.list,
             connection.timeout = PARALLEL.REMOTE.MASTER.CONNECTION.TIMEOUT,
             master             = PARALLEL.REMOTE.MASTER.IP,
             port               = PARALLEL.REMOTE.MASTER.PORT,
@@ -83,7 +85,7 @@ clusterEvalQ(cl, {
     flog.info("Logging configured")
 })
 
-if (PARALLEL.LOCAL.DISABLE.MKL.THREADS | PARALLEL.REMOTE.SLAVE.DISABLE.MKL.THREADS)
+if (PARALLEL.DISABLE.MKL.THREADS)
 {
     clusterEvalQ(cl, {
         tryCatch({setMKLthreads(1);

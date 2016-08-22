@@ -1,4 +1,4 @@
-imputation.median.mode = function(data, seed, parallel.computing)
+imputation.median.mode = function(data, seed, parallel.computing.enabled)
 {
     colnames.ord.factor = names(which(sapply(data, is.ordered)))
 
@@ -12,11 +12,20 @@ imputation.median.mode = function(data, seed, parallel.computing)
                                  simplify = F))$data
 }
 
-imputation.random.forest = function(data, seed, parallel.computing)
+imputation.random.forest = function(data, seed, parallel.computing.enabled)
 {
     set.seed(seed)
 
-    par.val = ifelse(parallel.computing, "forests", "no")
+    par.val = if (parallel.computing.enabled & foreach::getDoParWorkers() < 2)
+    {
+        flog.warn("Random forest imputation works only with at least 2 parallel workers")
+        flog.warn("Disabled parallel computing for random forest imputation")
+        "no"
+    } else if (parallel.computing.enabled) {
+        "forests"
+    } else {
+        "no"
+    }
 
     suppressWarnings(
         capture.output(
@@ -29,7 +38,7 @@ imputation.random.forest = function(data, seed, parallel.computing)
     cbind(data.new, data[ncol(data)])
 }
 
-imputation.mice = function(data, seed, parallel.computing)
+imputation.mice = function(data, seed, parallel.computing.enabled)
 {
     methods.for.predictors =
         sapply(head(colnames(data), ncol(data) - 1),

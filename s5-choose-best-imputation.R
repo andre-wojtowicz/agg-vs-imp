@@ -8,7 +8,7 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S5.FILE),
 
 flog.info("Step 5: choose best imputation")
 
-if (PARALLEL.COMPUTING)
+if (PARALLEL.COMPUTING.ENABLED)
 {
     source("init-parallel.R")
 }
@@ -51,7 +51,7 @@ for (dataset.name in DATASETS.NAMES)
         datasets.imputed = list(lapply(names(imputation.methods), function(name){
             flog.info(paste("Imputation:", name))
             imputation.methods[[name]](dataset.obscured.preprocessed, SEED,
-                                       PARALLEL.COMPUTING) }))
+                                       PARALLEL.COMPUTING.ENABLED) }))
 
         names(datasets.imputed[[1]]) = names(imputation.methods)
 
@@ -110,7 +110,7 @@ for (dataset.name in DATASETS.NAMES)
             model.datasets.imputed = lapply(names(imputation.methods), function(name){
                 flog.info(paste("Imputation:", name))
                 imputation.methods[[name]](dataset.obscured.preprocessed, SEED,
-                                           PARALLEL.COMPUTING) })
+                                           PARALLEL.COMPUTING.ENABLED) })
 
             names(model.datasets.imputed) = names(imputation.methods)
 
@@ -143,7 +143,7 @@ for (dataset.name in DATASETS.NAMES)
     flog.info(paste(rep("*", 25), collapse = ""))
 }
 
-if (PARALLEL.COMPUTING)
+if (PARALLEL.COMPUTING.ENABLED)
 {
-    stop.cluster(cl)
+    stop.cluster()
 }

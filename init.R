@@ -1,5 +1,16 @@
 # ---- init ----
 
+# stop cluster if it is already registered
+
+if ("cl" %in% ls() & !is.null(foreach::getDoParName()))
+{
+    if (foreach::getDoParName() != "doSEQ")
+    {
+        flog.info("Stopping already registered cluster")
+        stop.cluster()
+    }
+}
+
 # clear envirionment
 
 rm(list = ls())
