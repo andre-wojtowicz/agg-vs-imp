@@ -4,10 +4,12 @@ nested.cross.validation = function(dataset, model.name,
                                    model.grid, model.attrs, no.folds,
                                    preprocessing.methods, performance.selector,
                                    performance.maximize,
-                                   allow.parallel,
-                                   seed)
+                                   .random.seed = NULL)
 {
-    set.seed(seed)
+    if (!is.null(.random.seed))
+    {
+        assign(".Random.seed", .random.seed, envir = .GlobalEnv)
+    }
 
     colnames(dataset)[ncol(dataset)] = "Class"
 
@@ -51,7 +53,7 @@ nested.cross.validation = function(dataset, model.name,
             train.control = caret::trainControl(method = "cv",
                                                 index  = idx.inner,
                                                 seeds  = train.seeds.inner,
-                                                allowParallel = allow.parallel)
+                                                allowParallel = TRUE)
 
             training.arguments = merge(
                 list(form      = Class ~ .,
@@ -93,7 +95,7 @@ nested.cross.validation = function(dataset, model.name,
                                         index         = idx.outer,
                                         classProbs    = TRUE,
                                         seeds         = train.seeds,
-                                        allowParallel = allow.parallel)
+                                        allowParallel = TRUE)
 
     training.arguments = merge(
         list(form      = Class ~ .,
@@ -158,9 +160,13 @@ nested.cross.validation = function(dataset, model.name,
 
 cross.validation.for.imputation = function(datasets, models, no.folds,
                                            performance.selector,
-                                           performance.maximize, seed)
+                                           performance.maximize,
+                                           .random.seed = NULL)
 {
-    set.seed(seed)
+    if (!is.null(.random.seed))
+    {
+        assign(".Random.seed", .random.seed, envir = .GlobalEnv)
+    }
 
     no.imp.datasets = length(datasets[[1]][[1]]) # treat as multiple imputation
 
@@ -351,4 +357,46 @@ show.factor.levels.counts = function(dataset)
             }
         }
     }
+}
+
+# https://stackoverflow.com/a/21568878
+get.seeds <- function(init.seed, depths)
+{
+    RNGkind("L'Ecuyer-CMRG")
+    set.seed(init.seed)
+
+    seeds = vector("list", prod(depths))
+    seeds[[1]] = .Random.seed
+    for (i in seq_len(prod(depths) - 1))
+    {
+        seeds[[i + 1]] = nextRNGSubStream(seeds[[i]])
+    }
+
+    attr(seeds, "depths") = depths
+
+    return(seeds)
+}
+
+extract.seed = function(seeds, positions)
+{
+    depths = attr(seeds, "depths")
+
+    if (any(positions > depths))
+    {
+        stop.script("Bad index")
+    }
+
+    positions = positions - 1
+
+    idx = 1 + positions[length(depths)]
+
+    if (length(depths) > 1)
+    {
+        for (i in (length(depths) - 1):1)
+        {
+            idx = idx + positions[i] * prod( depths[length(depths):(i + 1)] )
+        }
+    }
+
+    seeds[[idx]]
 }

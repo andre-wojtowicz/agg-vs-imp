@@ -7,15 +7,14 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S2.FILE),
 
 flog.info("Step 2: learn classifiers")
 
-if (PARALLEL.COMPUTING.ENABLED)
-{
-    source("init-parallel.R")
-}
+source("init-parallel.R")
 
 if (!dir.exists(CLASSIFIERS.DIR))
 {
     dir.create(CLASSIFIERS.DIR)
 }
+
+seeds = get.seeds(SEED, c(length(DATASETS.NAMES), length(CLASSIFIERS.LIST) + 1))
 
 for (dataset.name in DATASETS.NAMES)
 {
@@ -26,6 +25,11 @@ for (dataset.name in DATASETS.NAMES)
     for (model.name in c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))
     {
         flog.info(paste("Classifier:", model.name))
+
+        .Random.seed =
+            extract.seed(seeds,
+                         c(which(dataset.name == DATASETS.NAMES),
+                           which(model.name == c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))))
 
         dataset.feature.selection.file.path =
             replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
@@ -49,8 +53,6 @@ for (dataset.name in DATASETS.NAMES)
 
             if (!is.null(fs.method))
             {
-                set.seed(SEED)
-
                 flog.info(paste("Feature selection:", fs.method))
 
                 rfe.seeds = vector(mode = "list", length = FEATURE.SELECTION.FOLDS + 1)
@@ -68,7 +70,7 @@ for (dataset.name in DATASETS.NAMES)
                                                 method = "cv",
                                                 number = FEATURE.SELECTION.FOLDS,
                                                 seeds  = rfe.seeds,
-                                                allowParallel = PARALLEL.COMPUTING.ENABLED))
+                                                allowParallel = TRUE))
 
                 flog.info(paste("Selected", length(predictors(fs.results)),
                                 "from", ncol(dataset.feature.selection) - 1, "features"))
@@ -92,8 +94,7 @@ for (dataset.name in DATASETS.NAMES)
                                             model.grid, model.attrs, NCV.FOLDS,
                                             NCV.PREPROCESSING.METHODS,
                                             NCV.PERFORMANCE.SELECTOR,
-                                            NCV.PERFORMANCE.MAXIMIZE,
-                                            PARALLEL.COMPUTING.ENABLED, SEED)
+                                            NCV.PERFORMANCE.MAXIMIZE)
 
             if (model.name == "OneR")
             {
@@ -130,7 +131,4 @@ for (dataset.name in DATASETS.NAMES)
     flog.info(paste(rep("*", 25), collapse = ""))
 }
 
-if (PARALLEL.COMPUTING.ENABLED)
-{
-    stop.cluster()
-}
+stop.cluster()

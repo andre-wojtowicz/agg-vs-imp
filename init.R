@@ -2,7 +2,7 @@
 
 # stop cluster if it is already registered
 
-if ("cl" %in% ls() & !is.null(foreach::getDoParName()))
+if ("cl" %in% ls() && !is.null(foreach::getDoParName()))
 {
     if (foreach::getDoParName() != "doSEQ")
     {
@@ -18,10 +18,6 @@ rm(list = ls())
 # load setup variables
 
 source("config.R")
-
-# set randomization
-
-set.seed(SEED)
 
 # load library management system
 

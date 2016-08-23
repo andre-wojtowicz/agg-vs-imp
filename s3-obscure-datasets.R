@@ -7,17 +7,19 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S3.FILE),
 
 flog.info("Step 3: obscure datasets")
 
+seeds = get.seeds(SEED, length(DATASETS.NAMES))
+
 for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
+
+    .Random.seed = extract.seed(seeds, which(DATASETS.NAMES == dataset.name))
 
     dataset.obscured.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURED)
 
     if (!file.exists(dataset.obscured.file.path) | OVERWRITE.OUTPUT.FILES)
     {
-        set.seed(SEED)
-
         dataset.obscuration.file.path =
             replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.OBSCURATION)
 

@@ -94,8 +94,10 @@ if (PARALLEL.DISABLE.MKL.THREADS)
     })
 }
 
-flog.info("Setting cluster RNG stream")
-clusterSetRNGStream(cl, SEED)
+flog.info("Setting cluster RNG kind")
+clusterEvalQ(cl, {
+    RNGkind("L'Ecuyer-CMRG")
+})
 
 flog.info("Registering cluster")
 registerDoParallel(cl)

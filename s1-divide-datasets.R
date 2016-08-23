@@ -7,11 +7,13 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S1.FILE),
 
 flog.info("Step 1: divide datasets")
 
+seeds = get.seeds(SEED, length(DATASETS.NAMES))
+
 for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
 
-    set.seed(SEED)
+    .Random.seed = extract.seed(seeds, which(DATASETS.NAMES == dataset.name))
 
     dataset.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, DATASETS.ORIGIN)

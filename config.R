@@ -2,7 +2,7 @@
 
 # randomization and output files
 
-SEED                   = 1337
+SEED                   = 931337
 OVERWRITE.OUTPUT.FILES = TRUE # overwrite created datasets and classifiers
 
 # extra user configuration and init
@@ -35,10 +35,6 @@ LOGGER.OVERWRITE.EXISTING.FILES = TRUE
 
 CLASSIFIERS.NAME.PATTERN        = "CLASSIFIER-NAME"
 DATASETS.NAME.PATTERN           = "DATASET-NAME"
-
-# parallel computing config
-
-PARALLEL.COMPUTING.ENABLED      = TRUE
 
 # classifiers used in the experiment
 
