@@ -33,6 +33,8 @@ for (dataset.name in DATASETS.NAMES)
 
         for (model.name in c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))
         {
+            #if (model.name == "OneR") next # TODO: del
+
             .Random.seed =
                 extract.seed(
                     seeds,
@@ -73,6 +75,7 @@ for (dataset.name in DATASETS.NAMES)
 
                 if (all(!is.na(case.predictors.used)))
                 {
+                    #next # TODO: del
                     # [1] All features are present
                     flog.info(paste("Case:", i, "- no optimization"))
 
@@ -112,21 +115,14 @@ for (dataset.name in DATASETS.NAMES)
 
                         if (length(features.numeric.nas) == 0)
                         {
+                            #next # TODO: del
                             # [2] Only factor features are not present
                             flog.info(paste("Case:", i, "- factor grid search"))
-
-                            progress.bar =
-                                utils::txtProgressBar(min   = 0,
-                                                      max   = nrow(factors.configs),
-                                                      style = 3)
 
                             predicted.values =
                                 optim.factor.grid.search(model,
                                                          case.predictors.all,
-                                                         factors.configs,
-                                                         progress.bar)
-
-                            close(progress.bar)
+                                                         factors.configs)
 
                             interval.lower = min(predicted.values)
                             interval.upper = max(predicted.values)
@@ -135,47 +131,26 @@ for (dataset.name in DATASETS.NAMES)
                             # [3] Factor and numeric features are not present
                             if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
                             {
+                                #next # TODO: del
                                 # [3.1] Non-smooth, derivative-free optimization
                                 flog.info(paste("Case:", i,
                                                 "- factor-numeric ns/df optimization"))
 
-                                eval.num.points =
-                                    sapply(1:length(features.numeric.nas), function(x)
-                                    {
-                                        runif(length(features.numeric.nas) *
-                                                  OPTIMIZATION.NUMERIC.BF.REPS, 0, 1)
-                                    })
-
-                                colnames(eval.num.points) = features.numeric.nas
-
-                                eval.fac.num.points =
-                                    expand.grid.df(factors.configs, eval.num.points)
-
-                                progress.bar =
-                                    utils::txtProgressBar(min   = 0,
-                                                          max   = nrow(eval.fac.num.points),
-                                                          style = 3)
-
                                 predicted.values =
                                     optim.factor.numeric.nsdf(model,
                                                               case.predictors.all,
-                                                              eval.fac.num.points,
-                                                              progress.bar)
-
-                                close(progress.bar)
+                                                              factors.configs,
+                                                              features.numeric.nas,
+                                                              OPTIMIZATION.NUMERIC.BF.REPS)
 
                                 interval.lower = min(predicted.values)
                                 interval.upper = max(predicted.values)
 
                             } else {
+                                #next # TODO: del
                                 # [3.2] Classic optimization
                                 flog.info(paste("Case:", i,
                                                 "- classic factor-numeric optimization"))
-
-                                progress.bar =
-                                    utils::txtProgressBar(min   = 0,
-                                                          max   = nrow(factors.configs),
-                                                          style = 3)
 
                                 predicted.values =
                                     optim.factor.numeric.classic(
@@ -184,71 +159,43 @@ for (dataset.name in DATASETS.NAMES)
                                         factors.configs,
                                         features.numeric.nas,
                                         OPTIMIZATION.NUMERIC.REPS,
-                                        OPTIMIZATION.NUMERIC.METHOD,
-                                        progress.bar
+                                        OPTIMIZATION.NUMERIC.METHOD
                                     )
 
-                                close(progress.bar)
-
-                                interval.lower = min(predicted.values[1, ])
-                                interval.upper = max(predicted.values[2, ])
+                                interval.lower = min(predicted.values[, 1])
+                                interval.upper = max(predicted.values[, 2])
                             }
                         }
 
                     } else {
+
                         # [4] Only numeric features are not present
                         if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
                         {
+                            #next # TODO: del
                             # [4.1] Non-smooth, derivative-free optimization
                             flog.info(paste("Case:", i, "- numeric ns/df optimization"))
-
-                            eval.points =
-                                sapply(1:length(features.numeric.nas), function(x)
-                                {
-                                    runif(length(features.numeric.nas) *
-                                              OPTIMIZATION.NUMERIC.BF.REPS, 0, 1)
-                                })
-
-                            progress.bar =
-                                utils::txtProgressBar(min   = 0,
-                                                      max   = nrow(eval.points),
-                                                      style = 3)
 
                             predicted.values =
                                 optim.numeric.nsdf(model,
                                                    case.predictors.all,
                                                    features.numeric.nas,
-                                                   eval.points,
-                                                   progress.bar)
-
-                            close(progress.bar)
+                                                   OPTIMIZATION.NUMERIC.BF.REPS)
 
                             interval.lower = min(predicted.values)
                             interval.upper = max(predicted.values)
 
                         } else {
+                            #next # TODO: del
                             # [4.2] Classic optimization
                             flog.info(paste("Case:", i, "- classic numeric optimization"))
-
-                            start.values =
-                                matrix(runif(OPTIMIZATION.NUMERIC.REPS *
-                                                 length(features.numeric.nas), 0, 1),
-                                       ncol = length(features.numeric.nas))
-
-                            progress.bar =
-                                utils::txtProgressBar(min   = 0,
-                                                      max   = nrow(start.values),
-                                                      style = 3)
 
                             predicted.values =
                                 optim.numeric.classic(model,
                                                       case.predictors.all,
                                                       features.numeric.nas,
-                                                      start.values,
-                                                      OPTIMIZATION.NUMERIC.METHOD,
-                                                      progress.bar)
-
-                            close(progress.bar)
+                                                      OPTIMIZATION.NUMERIC.REPS,
+                                                      OPTIMIZATION.NUMERIC.METHOD)
 
                             interval.lower = min(predicted.values[1, ])
                             interval.upper = max(predicted.values[2, ])

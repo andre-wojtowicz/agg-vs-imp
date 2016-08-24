@@ -1,30 +1,28 @@
-optim.factor.grid.search = function(model, case.predictors.all, factors.configs,
-                                    progress.bar = NULL)
+optim.factor.grid.search = function(model, case.predictors.all, factors.configs)
 {
-    sapply(1:nrow(factors.configs), function(j)
+    foreach::foreach(idx = 1:nrow(factors.configs),
+                     .combine = c) %dopar%
     {
-        if (!is.null(progress.bar))
-        {
-            utils::setTxtProgressBar(progress.bar, j)
-        }
-
         case.config = case.predictors.all # copy
 
         for (k in 1:ncol(factors.configs))
         {
             case.config[[colnames(factors.configs)[k]]] =
-                factors.configs[j, k]
+                factors.configs[idx, k]
         }
 
         suppressWarnings(stats::predict(model, case.config,
                                         type = "prob", na.action = NULL)[1, 1])
-    })
+    }
 }
 
 optim.numeric.classic = function(model, case.predictors.all, features.numeric.nas,
-                                 start.values, optimization.numeric.method,
-                                 progress.bar = NULL)
+                                 start.values.reps, optimization.numeric.method)
 {
+    start.values =
+        matrix(runif(start.values.reps * length(features.numeric.nas), 0, 1),
+               ncol = length(features.numeric.nas))
+
     target.function = function(x)
     {
         case.config = case.predictors.all # copy
@@ -41,13 +39,10 @@ optim.numeric.classic = function(model, case.predictors.all, features.numeric.na
     lower.values = rep(0, length(features.numeric.nas))
     upper.values = rep(1, length(features.numeric.nas))
 
-    sapply(1:nrow(start.values), function(idx)
+    foreach::foreach(idx = 1:nrow(start.values),
+                     .packages = "optimx",
+                     .combine  = cbind) %dopar%
     {
-        if (!is.null(progress.bar))
-        {
-            utils::setTxtProgressBar(progress.bar, idx)
-        }
-
         opt.objs = t(sapply(c(FALSE, TRUE), function(maximize.opt)
         {
             capture.output(
@@ -67,32 +62,22 @@ optim.numeric.classic = function(model, case.predictors.all, features.numeric.na
 
         opt.objs = data.frame(opt.objs)
 
-        if (any(unlist(opt.objs$convcode) != 0))
-        {
-            flog.warn("Numeric optimization: convcodes not equal to 0")
-        }
-
-        opt.values = unlist(opt.objs$value)
-
-        if (any(is.na(opt.values)))
-        {
-            stop.script("Numeric optimization: some values equal to NA")
-        }
-
-        opt.values
-    })
+        unlist(opt.objs$value)
+    }
 }
 
 optim.numeric.nsdf = function(model, case.predictors.all, features.numeric.nas,
-                              eval.points, progress.bar = NULL)
+                              eval.points.reps)
 {
-    sapply(1:nrow(eval.points), function(idx)
-    {
-        if (!is.null(progress.bar))
+    eval.points =
+        sapply(1:length(features.numeric.nas), function(x)
         {
-            utils::setTxtProgressBar(progress.bar, idx)
-        }
+            runif(length(features.numeric.nas) * eval.points.reps, 0, 1)
+        })
 
+    foreach::foreach(idx = 1:nrow(eval.points),
+                     .combine = c) %dopar%
+    {
         case.config = case.predictors.all # copy
 
         for (j in 1:length(features.numeric.nas))
@@ -102,21 +87,17 @@ optim.numeric.nsdf = function(model, case.predictors.all, features.numeric.nas,
 
         suppressWarnings(stats::predict(model, case.config,
                                         type = "prob", na.action = NULL)[1, 1])
-    })
+    }
 }
 
 optim.factor.numeric.classic = function(model, case.predictors.all, factors.configs,
                                         features.numeric.nas, optimization.numeric.reps,
-                                        optimization.numeric.method,
-                                        progress.bar = NULL)
+                                        optimization.numeric.method)
 {
-    sapply(1:nrow(factors.configs), function(idx)
-    {
-        if (!is.null(progress.bar))
-        {
-            utils::setTxtProgressBar(progress.bar, idx)
-        }
+    pred.vals = data.frame()
 
+    for (idx in 1:nrow(factors.configs))
+    {
         case.config = case.predictors.all # copy
 
         for (k in 1:ncol(factors.configs))
@@ -139,22 +120,25 @@ optim.factor.numeric.classic = function(model, case.predictors.all, factors.conf
         }
 
         start.values =
-            matrix(runif(OPTIMIZATION.NUMERIC.REPS * length(features.numeric.nas),
+            matrix(runif(optimization.numeric.reps * length(features.numeric.nas),
                          0, 1),
                    ncol = length(features.numeric.nas))
         lower.values = rep(0, length(features.numeric.nas))
         upper.values = rep(1, length(features.numeric.nas))
 
         minmax.vals =
-            apply(start.values, 1, function(y)
+            foreach::foreach(y = 1:nrow(start.values),
+                             .packages = "optimx",
+                             .combine  = cbind) %dopar%
             {
+                print(start.values)
                 opt.objs = t(sapply(c(FALSE, TRUE), function(maximize.opt)
                 {
                     capture.output(
                         opt.obj <-
-                            optimx(par     = y,
+                            optimx(par     = start.values[y, ],
                                    fn      = target.function,
-                                   method  = OPTIMIZATION.NUMERIC.METHOD,
+                                   method  = optimization.numeric.method,
                                    lower   = lower.values,
                                    upper   = upper.values,
                                    control = list(
@@ -168,35 +152,32 @@ optim.factor.numeric.classic = function(model, case.predictors.all, factors.conf
 
                 opt.objs = data.frame(opt.objs)
 
-                if (any(unlist(opt.objs$convcode) != 0))
-                {
-                    flog.warn("Numeric optimization: convcodes not equal to 0")
-                }
+                unlist(opt.objs$value)
+            }
 
-                opt.values = unlist(opt.objs$value)
+        pred.vals = rbind(pred.vals,
+                          c(min(minmax.vals[1, ]), max(minmax.vals[2, ])))
+    }
 
-                if (any(is.na(opt.values)))
-                {
-                    stop.script("Numeric optimization: some values equal to NA")
-                }
-
-                opt.values
-            })
-
-        c(min(minmax.vals[1, ]), max(minmax.vals[2, ]))
-    })
+    pred.vals
 }
 
-optim.factor.numeric.nsdf = function(model, case.predictors.all, eval.fac.num.points,
-                                     progress.bar = NULL)
+optim.factor.numeric.nsdf = function(model, case.predictors.all, factors.configs,
+                                     features.numeric.nas, optimization.numeric.reps)
 {
-    sapply(1:nrow(eval.fac.num.points), function(idx)
-    {
-        if (!is.null(progress.bar))
+    eval.num.points =
+        sapply(1:length(features.numeric.nas), function(x)
         {
-            utils::setTxtProgressBar(progress.bar, idx)
-        }
+            runif(length(features.numeric.nas) * optimization.numeric.reps, 0, 1)
+        })
 
+    colnames(eval.num.points) = features.numeric.nas
+
+    eval.fac.num.points = expand.grid.df(factors.configs, eval.num.points)
+
+    foreach::foreach(idx = 1:nrow(eval.fac.num.points),
+                     .combine  = c) %dopar%
+    {
         case.config = case.predictors.all # copy
 
         for (j in 1:ncol(eval.fac.num.points))
@@ -207,7 +188,7 @@ optim.factor.numeric.nsdf = function(model, case.predictors.all, eval.fac.num.po
 
         suppressWarnings(stats::predict(model, case.config,
                                         type = "prob", na.action = NULL)[1, 1])
-    })
+    }
 }
 
 
