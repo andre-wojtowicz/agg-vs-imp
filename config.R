@@ -152,9 +152,8 @@ IMPUTATION.METHODS = c("median/mode",
 OPTIMIZATION.NUMERIC.METHOD         = "nlminb"
 OPTIMIZATION.NUMERIC.REPS           = 10 # standard number of iterations
 
-OPTIMIZATION.NUMERIC.BF.CLASSIFIERS = c("C5.0", "knn") # classifiers which need
-                                                       # to have brute-force
-                                                       # numeric optimization
+# classifiers which need to have brute-force numeric optimization
+OPTIMIZATION.NUMERIC.BF.CLASSIFIERS = c("C5.0", "knn", "OneR")
 OPTIMIZATION.NUMERIC.BF.REPS        = 100 # number of iterations for brute-force
                                           # numeric optimization
 

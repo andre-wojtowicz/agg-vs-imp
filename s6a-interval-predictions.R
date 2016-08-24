@@ -1,11 +1,16 @@
 # ---- step-6a-calculate-interval-predictions ----
 
 source("init.R")
+source("methods-interval-predictions.R")
 
 setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S6A.FILE),
              LOGGER.OVERWRITE.EXISTING.FILES)
 
 flog.info("Step 6a: calculate interval predictions")
+
+source("init-parallel.R")
+
+seeds = get.seeds(SEED, c(length(DATASETS.NAMES), length(CLASSIFIERS.LIST) + 1))
 
 for (dataset.name in DATASETS.NAMES)
 {
@@ -22,13 +27,17 @@ for (dataset.name in DATASETS.NAMES)
         dataset.obscured = readRDS(dataset.obscured.file.path)
 
         dataset.interval.predictions =
-            data.frame(matrix(ncol = 2 * length(CLASSIFIERS.LIST),
+            data.frame(matrix(ncol = 2 * (length(CLASSIFIERS.LIST) + 1),
                               nrow = nrow(dataset.obscured),
                               data = 0))
 
-        for (model.name in CLASSIFIERS.LIST)
+        for (model.name in c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))
         {
-            set.seed(SEED)
+            .Random.seed =
+                extract.seed(
+                    seeds,
+                    c(which(dataset.name == DATASETS.NAMES),
+                      which(model.name == c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST))))
 
             flog.info(paste("Model:", model.name))
 
@@ -39,7 +48,7 @@ for (dataset.name in DATASETS.NAMES)
 
             model = readRDS(model.file.path)
 
-            colnames.id = 2 * which(CLASSIFIERS.LIST == model.name)
+            colnames.id = 2 * which(c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST) == model.name)
             colnames(dataset.interval.predictions)[c(colnames.id - 1, colnames.id)] =
                 paste0(model.name, c(".lower", ".upper"))
 
@@ -48,6 +57,8 @@ for (dataset.name in DATASETS.NAMES)
 
             dataset.obscured.preprocessed = stats::predict(preproc.scheme, dataset.obscured)
 
+            flog.info(paste("Cases:", nrow(dataset.obscured.preprocessed)))
+
             for (i in 1:nrow(dataset.obscured.preprocessed))
             {
                 case.predictors.all =
@@ -55,23 +66,29 @@ for (dataset.name in DATASETS.NAMES)
                 case.class =
                     dataset.obscured.preprocessed[i,  ncol(dataset.obscured.preprocessed)]
 
-                case.predictors.used = case.predictors.all[, as.character(used.predictors)]
+                case.predictors.used = case.predictors.all[as.character(used.predictors)]
+
+                interval.lower = NULL
+                interval.upper = NULL
 
                 if (all(!is.na(case.predictors.used)))
                 {
-                    flog.info(paste("Case:", i, "- no opt."))
+                    # [1] All features are present
+                    flog.info(paste("Case:", i, "- no optimization"))
 
-                    predicted.value = stats::predict(model, case.predictors.all,
-                                                     type = "prob", na.action = NULL)[1, 1]
+                    predicted.value =
+                        suppressWarnings(
+                            stats::predict(model, case.predictors.all,
+                                           type = "prob", na.action = NULL)[1, 1])
 
-                    dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
-                        predicted.value
+                    interval.lower = predicted.value
+                    interval.upper = predicted.value
 
                 } else {
                     features.factors =
                         names(which(sapply(colnames(case.predictors.used),
-                                           function(x){ any(class(case.predictors.used[[x]])
-                                                            == c("ordered", "factor"))})
+                                           function(x){
+                                               is.factor(case.predictors.used[[x]])})
                                     == TRUE))
 
                     features.factors.nas =
@@ -95,39 +112,32 @@ for (dataset.name in DATASETS.NAMES)
 
                         if (length(features.numeric.nas) == 0)
                         {
-                            flog.info(paste("Case:", i, "- factor opt."))
+                            # [2] Only factor features are not present
+                            flog.info(paste("Case:", i, "- factor grid search"))
 
-                            prog.bar =
+                            progress.bar =
                                 utils::txtProgressBar(min   = 0,
                                                       max   = nrow(factors.configs),
                                                       style = 3)
 
                             predicted.values =
-                                sapply(1:nrow(factors.configs), function(j)
-                                {
-                                    utils::setTxtProgressBar(prog.bar, j)
+                                optim.factor.grid.search(model,
+                                                         case.predictors.all,
+                                                         factors.configs,
+                                                         progress.bar)
 
-                                    case.config = case.predictors.all # copy
+                            close(progress.bar)
 
-                                    for (k in 1:ncol(factors.configs))
-                                    {
-                                        case.config[[colnames(factors.configs)[k]]] =
-                                            factors.configs[j, k]
-                                    }
-
-                                    stats::predict(model, case.config,
-                                                   type = "prob", na.action = NULL)[1, 1]
-                                })
-
-                            close(prog.bar)
-
-                            dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
-                                c(min(predicted.values), max(predicted.values))
+                            interval.lower = min(predicted.values)
+                            interval.upper = max(predicted.values)
 
                         } else {
+                            # [3] Factor and numeric features are not present
                             if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
                             {
-                                flog.info(paste("Case:", i, "- b.f. factor-numeric opt."))
+                                # [3.1] Non-smooth, derivative-free optimization
+                                flog.info(paste("Case:", i,
+                                                "- factor-numeric ns/df optimization"))
 
                                 eval.num.points =
                                     sapply(1:length(features.numeric.nas), function(x)
@@ -141,134 +151,56 @@ for (dataset.name in DATASETS.NAMES)
                                 eval.fac.num.points =
                                     expand.grid.df(factors.configs, eval.num.points)
 
-                                prog.bar =
+                                progress.bar =
                                     utils::txtProgressBar(min   = 0,
                                                           max   = nrow(eval.fac.num.points),
                                                           style = 3)
 
-                                est.vals =
-                                    sapply(1:nrow(eval.fac.num.points), function(x)
-                                    {
-                                        utils::setTxtProgressBar(prog.bar, x)
+                                predicted.values =
+                                    optim.factor.numeric.nsdf(model,
+                                                              case.predictors.all,
+                                                              eval.fac.num.points,
+                                                              progress.bar)
 
-                                        case.config = case.predictors.all # copy
+                                close(progress.bar)
 
-                                        for (j in 1:ncol(eval.fac.num.points))
-                                        {
-                                            case.config[[colnames(eval.fac.num.points)[j]]] =
-                                                eval.fac.num.points[x, j]
-                                        }
-
-                                        stats::predict(model, case.config,
-                                                       type = "prob", na.action = NULL)[1, 1]
-                                    })
-
-                                close(prog.bar)
-
-                                dataset.interval.predictions[i,
-                                                             c(colnames.id - 1, colnames.id)] =
-                                    c(min(est.vals), max(est.vals))
+                                interval.lower = min(predicted.values)
+                                interval.upper = max(predicted.values)
 
                             } else {
-                                flog.info(paste("Case:", i, "- std. factor-numeric opt."))
+                                # [3.2] Classic optimization
+                                flog.info(paste("Case:", i,
+                                                "- classic factor-numeric optimization"))
 
-                                prog.bar =
+                                progress.bar =
                                     utils::txtProgressBar(min   = 0,
                                                           max   = nrow(factors.configs),
                                                           style = 3)
 
                                 predicted.values =
-                                    sapply(1:nrow(factors.configs), function(j)
-                                    {
-                                        utils::setTxtProgressBar(prog.bar, j)
+                                    optim.factor.numeric.classic(
+                                        model,
+                                        case.predictors.all,
+                                        factors.configs,
+                                        features.numeric.nas,
+                                        OPTIMIZATION.NUMERIC.REPS,
+                                        OPTIMIZATION.NUMERIC.METHOD,
+                                        progress.bar
+                                    )
 
-                                        case.config = case.predictors.all # copy
+                                close(progress.bar)
 
-                                        for (k in 1:ncol(factors.configs))
-                                        {
-                                            case.config[[colnames(factors.configs)[k]]] =
-                                                factors.configs[j, k]
-                                        }
-
-                                        targetOptFunc2 = function(x)
-                                        {
-                                            case.config2 = case.config # copy
-
-                                            for (j in 1:length(features.numeric.nas))
-                                            {
-                                                case.config2[[features.numeric.nas[j]]] = x[j]
-                                            }
-
-                                            stats::predict(model, case.config2,
-                                                           type = "prob",
-                                                           na.action = NULL)[1, 1]
-                                        }
-
-                                        start.values =
-                                            matrix(runif(OPTIMIZATION.NUMERIC.REPS *
-                                                             length(features.numeric.nas),
-                                                         0, 1),
-                                                   ncol = length(features.numeric.nas))
-                                        lower.values = rep(0  , length(features.numeric.nas))
-                                        upper.values = rep(1  , length(features.numeric.nas))
-
-                                        minmax.vals =
-                                            apply(start.values, 1, function(y)
-                                            {
-                                                opt.objs = t(sapply(c(FALSE, TRUE), function(x)
-                                                {
-                                                    capture.output(
-                                                        opt.obj <-
-                                                            optimx(par     = y,
-                                                                   fn      = targetOptFunc2,
-                                                                   method  = OPTIMIZATION.NUMERIC.METHOD,
-                                                                   lower   = lower.values,
-                                                                   upper   = upper.values,
-                                                                   control = list(
-                                                                       kkt = FALSE,
-                                                                       maximize = x,
-                                                                       save.failures = TRUE,
-                                                                       maxit = 2500,
-                                                                       dowarn = FALSE)))
-                                                    opt.obj
-                                                }))
-
-                                                opt.objs = data.frame(opt.objs)
-
-                                                if (any(unlist(opt.objs$convcode) != 0))
-                                                {
-                                                    flog.warn(
-                                                        paste("Numeric optimization: convcodes",
-                                                              "not equal to 0"))
-                                                }
-
-                                                opt.values = unlist(opt.objs$value)
-
-                                                if (any(is.na(opt.values)))
-                                                {
-                                                    flog.error(
-                                                        paste("Numeric optimization:",
-                                                              "some values equal to NA"))
-                                                }
-
-                                                opt.values
-                                            })
-
-                                        c(min(minmax.vals[1, ]), max(minmax.vals[2, ]))
-                                    })
-
-                                close(prog.bar)
-
-                                dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
-                                    c(min(predicted.values[1, ]), max(predicted.values[2, ]))
-
+                                interval.lower = min(predicted.values[1, ])
+                                interval.upper = max(predicted.values[2, ])
                             }
                         }
 
                     } else {
+                        # [4] Only numeric features are not present
                         if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
                         {
-                            flog.info(paste("Case:", i, "- bf. numeric opt."))
+                            # [4.1] Non-smooth, derivative-free optimization
+                            flog.info(paste("Case:", i, "- numeric ns/df optimization"))
 
                             eval.points =
                                 sapply(1:length(features.numeric.nas), function(x)
@@ -277,109 +209,70 @@ for (dataset.name in DATASETS.NAMES)
                                               OPTIMIZATION.NUMERIC.BF.REPS, 0, 1)
                                 })
 
-                            est.vals =
-                                apply(eval.points, 1, function(x)
-                                {
-                                    case.config = case.predictors.all # copy
+                            progress.bar =
+                                utils::txtProgressBar(min   = 0,
+                                                      max   = nrow(eval.points),
+                                                      style = 3)
 
-                                    for (j in 1:length(features.numeric.nas))
-                                    {
-                                        case.config[[features.numeric.nas[j]]] = x[j]
-                                    }
+                            predicted.values =
+                                optim.numeric.nsdf(model,
+                                                   case.predictors.all,
+                                                   features.numeric.nas,
+                                                   eval.points,
+                                                   progress.bar)
 
-                                    stats::predict(model, case.config,
-                                                   type = "prob", na.action = NULL)[1, 1]
-                                })
+                            close(progress.bar)
 
-                            dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
-                                c(min(est.vals), max(est.vals))
+                            interval.lower = min(predicted.values)
+                            interval.upper = max(predicted.values)
 
                         } else {
-                            flog.info(paste("Case:", i, "- std. numeric opt."))
-
-                            targetOptFunc = function(x)
-                            {
-                                case.config = case.predictors.all # copy
-
-                                for (j in 1:length(features.numeric.nas))
-                                {
-                                    case.config[[features.numeric.nas[j]]] = x[j]
-                                }
-
-                                stats::predict(model, case.config,
-                                               type = "prob", na.action = NULL)[1, 1]
-                            }
+                            # [4.2] Classic optimization
+                            flog.info(paste("Case:", i, "- classic numeric optimization"))
 
                             start.values =
                                 matrix(runif(OPTIMIZATION.NUMERIC.REPS *
                                                  length(features.numeric.nas), 0, 1),
                                        ncol = length(features.numeric.nas))
-                            lower.values = rep(0  , length(features.numeric.nas))
-                            upper.values = rep(1  , length(features.numeric.nas))
 
-                            prog.bar =
+                            progress.bar =
                                 utils::txtProgressBar(min   = 0,
                                                       max   = nrow(start.values),
                                                       style = 3)
 
-                            minmax.vals =
-                                sapply(1:nrow(start.values), function(z)
-                                {
-                                    utils::setTxtProgressBar(prog.bar, z)
+                            predicted.values =
+                                optim.numeric.classic(model,
+                                                      case.predictors.all,
+                                                      features.numeric.nas,
+                                                      start.values,
+                                                      OPTIMIZATION.NUMERIC.METHOD,
+                                                      progress.bar)
 
-                                    y = start.values[z, ]
+                            close(progress.bar)
 
-                                    opt.objs = t(sapply(c(FALSE, TRUE), function(x)
-                                    {
-                                        capture.output(
-                                            opt.obj <-
-                                                optimx(par     = y,
-                                                       fn      = targetOptFunc,
-                                                       method  = OPTIMIZATION.NUMERIC.METHOD,
-                                                       lower   = lower.values,
-                                                       upper   = upper.values,
-                                                       control = list(kkt           = FALSE,
-                                                                      maximize      = x,
-                                                                      save.failures = TRUE,
-                                                                      maxit         = 2500,
-                                                                      dowarn        = FALSE)))
-                                        opt.obj
-                                    }))
-
-                                    opt.objs = data.frame(opt.objs)
-
-                                    if (any(unlist(opt.objs$convcode) != 0))
-                                    {
-                                        flog.warn(paste("Numeric optimization: convcodes",
-                                                        "not equal to 0"))
-                                    }
-
-                                    opt.values = unlist(opt.objs$value)
-
-                                    if (any(is.na(opt.values)))
-                                    {
-                                        flog.error(paste("Numeric optimization: some values",
-                                                         "equal to NA"))
-                                    }
-
-                                    opt.values
-                                })
-
-                            close(prog.bar)
-
-                            dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
-                                c(min(minmax.vals[1, ]), max(minmax.vals[2, ]))
+                            interval.lower = min(predicted.values[1, ])
+                            interval.upper = max(predicted.values[2, ])
                         }
                     }
-
-                    vals = dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)]
-
-
-                    if (vals[[1]] > vals[[2]])
-                    {
-                        flog.error("Lower bound greater than upper bound")
-                    }
                 }
+
+                if (any(is.na(c(interval.lower, interval.upper))) ||
+                    any(is.null(c(interval.lower, interval.upper))))
+                {
+                    stop.script("Lower and/or upper bound is NA/NULL")
+                }
+
+                if (interval.lower > interval.upper)
+                {
+                    stop.script("Lower bound greater than upper bound")
+                }
+
+                flog.info(paste0("Predicted interval: [",
+                                 round(interval.lower, 4), ", ",
+                                 round(interval.upper, 4), "]"))
+
+                dataset.interval.predictions[i, c(colnames.id - 1, colnames.id)] =
+                    c(interval.lower, interval.upper)
             }
 
             flog.info(paste(rep("*", 10), collapse = ""))
@@ -400,3 +293,5 @@ for (dataset.name in DATASETS.NAMES)
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }
+
+stop.cluster()
