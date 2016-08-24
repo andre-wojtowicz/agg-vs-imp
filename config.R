@@ -2,7 +2,7 @@
 
 # randomization and output files
 
-SEED                   = 931337
+SEED                   = 1337
 OVERWRITE.OUTPUT.FILES = TRUE # overwrite created datasets and classifiers
 
 # extra user configuration and init

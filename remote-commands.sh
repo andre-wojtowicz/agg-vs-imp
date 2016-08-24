@@ -215,7 +215,7 @@ install_r_libraries()
 dump_project_r_files()
 {
     step "Making project R files dump"
-    try tar -czf project-r-files.tar.gz *.R *.R.user
+    try tar -czf project-r-files.tar.gz *.R*
     next
     check_if_command_error
 }
