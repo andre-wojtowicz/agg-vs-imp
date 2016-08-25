@@ -202,9 +202,10 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
                 predictions.unified = sapply(1:nrow(datasets.train[[1]]), function(row.id){
                     names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
 
-                cf.matrix =
+                cf.matrix = suppressWarnings(
                   caret::confusionMatrix(predictions.unified,
                                          datasets.train[[1]][, ncol(datasets.train[[1]])])
+                )
                 cf.matrix$overall[[performance.selector]]
             })
 
@@ -221,8 +222,10 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
         predictions.unified = sapply(1:nrow(datasets.test[[1]]), function(row.id){
             names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
 
-        cf.matrix   = caret::confusionMatrix(predictions.unified,
-                                             datasets.test[[1]][, ncol(datasets.test[[1]])])
+        cf.matrix = suppressWarnings(
+            caret::confusionMatrix(predictions.unified,
+                                   datasets.test[[1]][, ncol(datasets.test[[1]])])
+        )
 
         folds.performances = rbind(folds.performances,
                                    data.frame(t(c(cf.matrix$overall,
@@ -247,8 +250,10 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
             predictions.unified = sapply(1:nrow(datasets.final[[1]]), function(row.id){
                 names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
 
-            cf.matrix   = caret::confusionMatrix(predictions.unified,
-                                                 datasets.final[[1]][, ncol(datasets.final[[1]])])
+            cf.matrix = suppressWarnings(
+                caret::confusionMatrix(predictions.unified,
+                                       datasets.final[[1]][, ncol(datasets.final[[1]])])
+            )
             cf.matrix$overall[[performance.selector]]
         })
 
