@@ -73,22 +73,23 @@ imputation.mice = function(data, .random.seed)
             mice.seed = par.seeds[no.iter, attempt]
 
             repeat.mice = FALSE
-            tryCatch(mice.mid <- mice::mice(data          = mice.data,
+            tryCatch({mice.mid <- mice::mice(data          = mice.data,
                                             m             = 1,
                                             maxit         = mice.maxit,
                                             printFlag     = FALSE,
                                             defaultMethod = mice.default.methods,
-                                            seed          = mice.seed),
+                                            seed          = mice.seed)},
                      error = function(e){
-                        flog.warn("Mice algorithm failed")
-                        repeat.mice = TRUE
+                        flog.debug(paste(no.iter, "Mice algorithm failed"))
+                        repeat.mice <<- TRUE
                      })
+
             if (repeat.mice)
             {
                 attempt = attempt - 1
-                next
+            } else {
+                break
             }
-            break
         }
         mice.mid
     }
