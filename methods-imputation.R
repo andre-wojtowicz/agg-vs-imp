@@ -23,7 +23,7 @@ imputation.random.forest = function(data, .random.seed)
     mf.ntree   = 100
     mf.data    = droplevels(data)[, -ncol(data)]
 
-    par.seeds = sample.int(1000, mf.ntree)
+    par.seeds = sample.int(10000, mf.ntree)
 
     suppressWarnings(
         capture.output(
@@ -56,7 +56,7 @@ imputation.mice = function(data, .random.seed)
         stop.script("Number of imputations must be an odd number")
     }
 
-    par.seeds = sample.int(1000, mice.no.imp)
+    par.seeds = sample.int(10000, mice.no.imp)
 
     data.mids =
         foreach::foreach(no.iter   = 1:mice.no.imp,
@@ -65,12 +65,31 @@ imputation.mice = function(data, .random.seed)
     {
         set.seed(par.seeds[no.iter])
 
-        mice::mice(data          = mice.data,
-                   m             = 1,
-                   maxit         = mice.maxit,
-                   printFlag     = FALSE,
-                   defaultMethod = mice.default.methods,
-                   seed          = par.seeds[no.iter])
+        attempts = 10
+        mice.seed = par.seeds[no.iter]
+        mice.mid = NULL
+        while (attempts > 0)
+        {
+            repeat.mice = FALSE
+            tryCatch(mice.mid <- mice::mice(data          = mice.data,
+                                            m             = 1,
+                                            maxit         = mice.maxit,
+                                            printFlag     = FALSE,
+                                            defaultMethod = mice.default.methods,
+                                            seed          = mice.seed),
+                     error = function(e){
+                        flog.warn("Mice algorithm failed")
+                        repeat.mice = TRUE
+                     })
+            if (repeat.mice)
+            {
+                mice.seed = sample.int(10000, 1)
+                attempts  = attempts - 1
+                next
+            }
+            break
+        }
+        mice.mid
     }
 
     data.new = lapply(1:mice.no.imp, function(i){mice::complete(data.mids, i)})
