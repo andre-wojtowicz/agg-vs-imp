@@ -297,19 +297,23 @@ hosts_install()
         {   ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "bash ${SHELL_SCRIPT} install_$1 &> install_$1.log" ;
             endcode=$?
             if [ $endcode -eq 0 ] ; then
-                success "-- ${host} finished, $(jobs -rp | wc -l) hosts running"
+                success "-- ${host} finished"
             else
-                fail "-- ${host} finished, $(jobs -rp | wc -l) hosts running"
+                fail "-- ${host} finished"
                 report_error 1
             fi
         } &
 
     done
-    
-    info "- Waiting for $(jobs -rp | wc -l) hosts"
    
+    last_workers=-1
     while true; do
-        if [ $(jobs -rp | wc -l) -eq 0 ] ; then break; fi
+        current_workers=$(jobs -rp | wc -l)
+        if [ $current_workers -eq 0 ] ; then break; fi
+        if (( $current_workers % 5 == 0)) &&  [ "$current_workers" -ne "$last_workers" ] ; then
+            info "- Waiting for $current_workers hosts"
+            last_workers=$current_workers
+        fi
         sleep 1
     done
     
