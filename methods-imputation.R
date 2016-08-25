@@ -56,20 +56,22 @@ imputation.mice = function(data, .random.seed)
         stop.script("Number of imputations must be an odd number")
     }
 
-    par.seeds = sample.int(10000, mice.no.imp)
+    mice.max.attempts = 10
+    par.seeds = matrix(sample.int(10000, mice.no.imp * mice.max.attempts),
+                       nrow = mice.no.imp)
 
     data.mids =
         foreach::foreach(no.iter   = 1:mice.no.imp,
                          .combine  = ibind,
                          .packages = "mice") %dopar%
     {
-        set.seed(par.seeds[no.iter])
-
-        attempts = 10
-        mice.seed = par.seeds[no.iter]
+        attempt = mice.max.attempts
         mice.mid = NULL
-        while (attempts > 0)
+        while (attempt > 0)
         {
+            set.seed(par.seeds[no.iter, attempt])
+            mice.seed = par.seeds[no.iter, attempt]
+
             repeat.mice = FALSE
             tryCatch(mice.mid <- mice::mice(data          = mice.data,
                                             m             = 1,
@@ -83,8 +85,7 @@ imputation.mice = function(data, .random.seed)
                      })
             if (repeat.mice)
             {
-                mice.seed = sample.int(10000, 1)
-                attempts  = attempts - 1
+                attempt = attempt - 1
                 next
             }
             break
