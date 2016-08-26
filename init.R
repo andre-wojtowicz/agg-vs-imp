@@ -47,6 +47,7 @@ if (!dir.exists(LOGGER.OUTPUT.DIR))
 
 # load libraries
 
+library(data.table)
 library(sets)
 library(plyr)
 library(dplyr)

@@ -25,6 +25,7 @@ LOGGER.OUTPUT.S2.FILE           = "output-s2.log"
 LOGGER.OUTPUT.S3.FILE           = "output-s3.log"
 LOGGER.OUTPUT.S4.FILE           = "output-s4.log"
 LOGGER.OUTPUT.S5.FILE           = "output-s5.log"
+LOGGER.OUTPUT.S6.1.FILE         = "output-s6-1.log"
 LOGGER.OUTPUT.S6A.FILE          = "output-s6a.log"
 LOGGER.OUTPUT.S6B.FILE          = "output-s6b.log"
 LOGGER.OUTPUT.S7.FILE           = "output-s7.log"
@@ -109,8 +110,11 @@ DATASETS.OBSCURATION       =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscuration.rds"))
 DATASETS.OBSCURED          =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-obscured.rds"))
+
+DATASETS.AGG.FOLDS.RAW     =
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-agg-folds-raw.rds"))
 DATASETS.INTERVAL          =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds"))
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds")) # TODO: del?
 
 
 DATASETS.SIZE.FEATURE.SELECTION   =  150
