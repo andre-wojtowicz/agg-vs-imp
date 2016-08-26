@@ -230,16 +230,18 @@ missForest.custom = function(xmis, maxiter = 10, ntree = 100, variablewise = FAL
                                   .combine = "combine", .multicombine = TRUE,
                                   .packages = "randomForest") %dopar% {
                                       set.seed(par.seeds[xntree])
-                                      randomForest(x = obsX, y = obsY, ntree = 1,
-                                                   mtry = mtry, replace = replace, sampsize = if (!is.null(sampsize))
-                                                       sampsize[[varInd]]
-                                                   else if (replace)
-                                                       nrow(obsX)
-                                                   else ceiling(0.632 * nrow(obsX)), nodesize = if (!is.null(nodesize))
-                                                       nodesize[1]
-                                                   else 1, maxnodes = if (!is.null(maxnodes))
-                                                       maxnodes
-                                                   else NULL)
+                                      suppressWarnings(
+                                          randomForest(x = obsX, y = obsY, ntree = 1,
+                                                       mtry = mtry, replace = replace, sampsize = if (!is.null(sampsize))
+                                                           sampsize[[varInd]]
+                                                       else if (replace)
+                                                           nrow(obsX)
+                                                       else ceiling(0.632 * nrow(obsX)), nodesize = if (!is.null(nodesize))
+                                                           nodesize[1]
+                                                       else 1, maxnodes = if (!is.null(maxnodes))
+                                                           maxnodes
+                                                       else NULL)
+                                      )
                                   }
                     OOBerror[varInd] <- mean((predict(RF) -
                                                   RF$y) ^ 2, na.rm = TRUE)
@@ -258,25 +260,27 @@ missForest.custom = function(xmis, maxiter = 10, ntree = 100, variablewise = FAL
                                       .packages = "randomForest") %dopar%
                                       {
                                           set.seed(par.seeds[xntree])
-                                          randomForest(x = obsX, y = obsY,
-                                                       ntree = 1, mtry = mtry, replace = replace,
-                                                       classwt = if (!is.null(classwt))
-                                                           classwt[[varInd]]
-                                                       else rep(1, nlevels(obsY)), cutoff = if (!is.null(cutoff))
-                                                           cutoff[[varInd]]
-                                                       else rep(1/nlevels(obsY), nlevels(obsY)),
-                                                       strata = if (!is.null(strata))
-                                                           strata[[varInd]]
-                                                       else obsY, sampsize = if (!is.null(sampsize))
-                                                           sampsize[[varInd]]
-                                                       else if (replace)
-                                                           nrow(obsX)
-                                                       else ceiling(0.632 * nrow(obsX)),
-                                                       nodesize = if (!is.null(nodesize))
-                                                           nodesize[2]
-                                                       else 5, maxnodes = if (!is.null(maxnodes))
-                                                           maxnodes
-                                                       else NULL)
+                                          suppressWarnings(
+                                              randomForest(x = obsX, y = obsY,
+                                                           ntree = 1, mtry = mtry, replace = replace,
+                                                           classwt = if (!is.null(classwt))
+                                                               classwt[[varInd]]
+                                                           else rep(1, nlevels(obsY)), cutoff = if (!is.null(cutoff))
+                                                               cutoff[[varInd]]
+                                                           else rep(1/nlevels(obsY), nlevels(obsY)),
+                                                           strata = if (!is.null(strata))
+                                                               strata[[varInd]]
+                                                           else obsY, sampsize = if (!is.null(sampsize))
+                                                               sampsize[[varInd]]
+                                                           else if (replace)
+                                                               nrow(obsX)
+                                                           else ceiling(0.632 * nrow(obsX)),
+                                                           nodesize = if (!is.null(nodesize))
+                                                               nodesize[2]
+                                                           else 5, maxnodes = if (!is.null(maxnodes))
+                                                               maxnodes
+                                                           else NULL)
+                                          )
                                       }
                         ne <- as.integer(predict(RF)) != as.integer(RF$y)
                         ne <- ne[!is.na(ne)]
