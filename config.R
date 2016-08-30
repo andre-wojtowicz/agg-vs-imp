@@ -97,6 +97,13 @@ DATASETS.NAMES = c("bank-marketing",
                    "magic",
                    "wine-quality")
 
+DATASETS.ALWAYS.AVAILABLE.PREDICTORS = list(
+    "bank-marketing" = c("job", "marital", "education", "day", "month",
+                         "pdays", "pdays.bin", "poutcome"),
+    "census-income"  = c("workclass", "education", "marital.status", "occupation",
+                         "race", "sex")
+)
+
 DATASETS.DIR               = "datasets"
 DATASETS.ORIGIN            =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, ".rds"))

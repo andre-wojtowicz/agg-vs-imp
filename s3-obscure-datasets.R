@@ -43,6 +43,13 @@ for (dataset.name in DATASETS.NAMES)
         flog.info(paste("Used predictors:", length(dataset.used.predictors),
                         "of", ncol(dataset.obscuration) - 1))
 
+        dataset.obscurable.predictors =
+            dataset.used.predictors -
+            as.set(DATASETS.ALWAYS.AVAILABLE.PREDICTORS[[dataset.name]])
+
+        flog.info(paste("Obscurable predictors:", length(dataset.obscurable.predictors),
+                        "of", length(dataset.used.predictors)))
+
         dataset.class.levels = levels(dataset.obscuration[, ncol(dataset.obscuration)])
         dataset.class.name   = tail(colnames(dataset.obscuration), 1)
 
@@ -66,16 +73,16 @@ for (dataset.name in DATASETS.NAMES)
 
             dataset.nas.idx = caret::createFolds(dataset[(no.nas.pos + 1):nrow(dataset),
                                                          ncol(dataset)],
-                                                 k = length(dataset.used.predictors) - 1)
+                                                 k = length(dataset.obscurable.predictors) - 1)
 
-            for (i in 1:(length(dataset.used.predictors) - 1))
+            for (i in 1:(length(dataset.obscurable.predictors) - 1))
             {
                 chunk = dataset[dataset.nas.idx[[i]] + no.nas.pos, ]
                 chunk.not.used = chunk[, !(colnames(chunk) %in%
-                                               c(as.character(dataset.used.predictors),
+                                               c(as.character(dataset.obscurable.predictors),
                                                  dataset.class.name))]
                 chunk.used     = chunk[,   colnames(chunk) %in%
-                                           c(as.character(dataset.used.predictors),
+                                           c(as.character(dataset.obscurable.predictors),
                                              dataset.class.name)]
 
                 nas.matrix = matrix(FALSE,
