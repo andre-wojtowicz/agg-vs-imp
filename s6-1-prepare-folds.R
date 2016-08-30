@@ -121,7 +121,11 @@ for (dataset.name in DATASETS.NAMES)
                     obscuration.func = function(row, k, l)
                     {
                         ret = as.list(row)
-                        ret[sample(colnames(row)[!is.na(row)], k - l)] = NA_integer_
+                        cols.to.na = sample(colnames(row)[!is.na(row)], k - l)
+                        cols.to.na.real  = names(which( sapply(row, is.double)[cols.to.na]))
+                        cols.to.na.other = names(which(!sapply(row, is.double)[cols.to.na]))
+                        ret[cols.to.na.real]  = NA_real_
+                        ret[cols.to.na.other] = NA_integer_
                         ret
                     }
 
@@ -225,7 +229,11 @@ for (dataset.name in DATASETS.NAMES)
                 obscuration.func = function(row, k, l)
                 {
                     ret = as.list(row)
-                    ret[sample(colnames(row)[!is.na(row)], k - l)] = NA_integer_
+                    cols.to.na = sample(colnames(row)[!is.na(row)], k - l)
+                    cols.to.na.real  = names(which( sapply(row, is.double)[cols.to.na]))
+                    cols.to.na.other = names(which(!sapply(row, is.double)[cols.to.na]))
+                    ret[cols.to.na.real]  = NA_real_
+                    ret[cols.to.na.other] = NA_integer_
                     ret
                 }
 
