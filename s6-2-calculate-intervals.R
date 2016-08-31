@@ -136,9 +136,10 @@ for (dataset.name in DATASETS.NAMES)
                 foreach::getDoParWorkers())
 
             interval.predictions = foreach::foreach(
-                no.job    = 1:length(par.jobs.partition),
-                .combine  = list,
-                .packages = c("optimx", "data.table", "foreach")) %dopar%
+                no.job         = 1:length(par.jobs.partition),
+                .multicombine  = TRUE,
+                .maxcombine    = length(par.jobs.partition),
+                .packages      = c("optimx", "data.table", "foreach")) %dopar%
             {
                 job.results = data.table(id    = numeric(0),
                                          lower = numeric(0),
