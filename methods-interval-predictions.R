@@ -1,7 +1,7 @@
 optim.factor.grid.search = function(model, case.predictors.all, factors.configs)
 {
     foreach::foreach(idx = 1:nrow(factors.configs),
-                     .combine = c) %dopar%
+                     .combine = c) %do%
     {
         case.config = case.predictors.all # copy
 
@@ -12,7 +12,7 @@ optim.factor.grid.search = function(model, case.predictors.all, factors.configs)
         }
 
         suppressWarnings(stats::predict(model, case.config,
-                                        type = "prob", na.action = NULL)[1, 1])
+                                        type = "prob", na.action = NULL)[1, 2])
     }
 }
 
@@ -33,7 +33,7 @@ optim.numeric.classic = function(model, case.predictors.all, features.numeric.na
         }
 
         suppressWarnings(stats::predict(model, case.config,
-                                        type = "prob", na.action = NULL)[1, 1])
+                                        type = "prob", na.action = NULL)[1, 2])
     }
 
     lower.values = rep(0, length(features.numeric.nas))
@@ -41,7 +41,7 @@ optim.numeric.classic = function(model, case.predictors.all, features.numeric.na
 
     foreach::foreach(idx = 1:nrow(start.values),
                      .packages = "optimx",
-                     .combine  = cbind) %dopar%
+                     .combine  = cbind) %do%
     {
         opt.objs = t(sapply(c(FALSE, TRUE), function(maximize.opt)
         {
@@ -76,7 +76,7 @@ optim.numeric.nsdf = function(model, case.predictors.all, features.numeric.nas,
         })
 
     foreach::foreach(idx = 1:nrow(eval.points),
-                     .combine = c) %dopar%
+                     .combine = c) %do%
     {
         case.config = case.predictors.all # copy
 
@@ -86,7 +86,7 @@ optim.numeric.nsdf = function(model, case.predictors.all, features.numeric.nas,
         }
 
         suppressWarnings(stats::predict(model, case.config,
-                                        type = "prob", na.action = NULL)[1, 1])
+                                        type = "prob", na.action = NULL)[1, 2])
     }
 }
 
@@ -116,7 +116,7 @@ optim.factor.numeric.classic = function(model, case.predictors.all, factors.conf
             }
 
             suppressWarnings(stats::predict(model, case.config.internal,
-                                            type = "prob", na.action = NULL)[1, 1])
+                                            type = "prob", na.action = NULL)[1, 2])
         }
 
         start.values =
@@ -129,9 +129,8 @@ optim.factor.numeric.classic = function(model, case.predictors.all, factors.conf
         minmax.vals =
             foreach::foreach(y = 1:nrow(start.values),
                              .packages = "optimx",
-                             .combine  = cbind) %dopar%
+                             .combine  = cbind) %do%
             {
-                print(start.values)
                 opt.objs = t(sapply(c(FALSE, TRUE), function(maximize.opt)
                 {
                     capture.output(
@@ -176,7 +175,7 @@ optim.factor.numeric.nsdf = function(model, case.predictors.all, factors.configs
     eval.fac.num.points = expand.grid.df(factors.configs, eval.num.points)
 
     foreach::foreach(idx = 1:nrow(eval.fac.num.points),
-                     .combine  = c) %dopar%
+                     .combine  = c) %do%
     {
         case.config = case.predictors.all # copy
 
@@ -187,7 +186,7 @@ optim.factor.numeric.nsdf = function(model, case.predictors.all, factors.configs
         }
 
         suppressWarnings(stats::predict(model, case.config,
-                                        type = "prob", na.action = NULL)[1, 1])
+                                        type = "prob", na.action = NULL)[1, 2])
     }
 }
 
