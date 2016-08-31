@@ -3,6 +3,8 @@
 PARALLEL.USED.METHOD               = "LOCAL" # LOCAL or REMOTE
 PARALLEL.DISABLE.MKL.THREADS       = TRUE
 
+PARALLEL.NO.JOBS.PER.CHUNK         = 100 # no. jobs per worker in step 6-2
+
 # local
 PARALLEL.LOCAL.METHOD              = switch(Sys.info()[['sysname']],
                                             Windows = "PSOCK",

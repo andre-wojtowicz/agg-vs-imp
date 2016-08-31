@@ -122,7 +122,7 @@ DATASETS.OBSCURED          =
 DATASETS.AGG.FOLDS.RAW     =
     file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-agg-folds-raw.rds"))
 DATASETS.INTERVAL          =
-    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-interval.rds")) # TODO: del?
+    file.path(DATASETS.DIR, paste0(DATASETS.NAME.PATTERN, "-agg-folds-interval.rds"))
 
 
 DATASETS.SIZE.FEATURE.SELECTION   =  150
