@@ -28,7 +28,6 @@ LOGGER.OUTPUT.S5.FILE           = "output-s5.log"
 LOGGER.OUTPUT.S6.1.FILE         = "output-s6-1.log"
 LOGGER.OUTPUT.S6.2.FILE         = "output-s6-2.log"
 LOGGER.OUTPUT.S6.3.FILE         = "output-s6-3.log"
-LOGGER.OUTPUT.S6B.FILE          = "output-s6b.log" # TODO: delete
 LOGGER.OUTPUT.S7.FILE           = "output-s7.log"
 LOGGER.LEVEL                    = 6 # futile.logger::INFO
 LOGGER.OVERWRITE.EXISTING.FILES = TRUE
@@ -131,6 +130,12 @@ DATASETS.SIZE.OBSCURATION         = 1000
 DATASETS.SIZE.PER.CLASS =
     ((DATASETS.SIZE.FEATURE.SELECTION + DATASETS.SIZE.CLASSIFICATION) *
          (length(CLASSIFIERS.LIST) + 1) + DATASETS.SIZE.OBSCURATION) / 2
+
+# aggregation strategies
+
+AGGREGATION.DIR                 = "aggregation-ops"
+AGGREGATION.LEARNED =
+    file.path(AGGREGATION.DIR, paste0(DATASETS.NAME.PATTERN, "-agg.rds"))
 
 # obscuration step
 

@@ -19,6 +19,7 @@ vignettes/*.pdf
 .Rproj.user
 .log
 
+aggregation-ops/
 classifiers/
 datasets/
 logs/

@@ -285,6 +285,69 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
                 "folds.performances" = folds.performances))
 }
 
+nested.cross.validation.for.aggregation = function(aggregation.strategies,
+                                                   dataset.folds,
+                                                   no.folds,
+                                                   performance.selector,
+                                                   performance.maximize)
+{
+    # dataset.fold:
+    #
+    # | agg.outer.id | agg.inner.id | agg.type | agg.no.missing.att | agg.class | -
+    # - | c1.lower | c1.upper | c2.lower | c2.upper | ... | cn.lower | cn.upper |
+    #
+    # agg.outer.id       : int { 1, ..., NCV.FOLDS }
+    # agg.inner.id       : int { 1, ..., NCV.FOLDS, NA (if data is for Phase 2 of NCV) }
+    # agg.type           : chr { training, testing }
+    # agg.no.missing.att : int { 0, ... }
+    # agg.class          : int { 0, 1 }
+    # ci.lower, ci.upper : num [0.0, 1.0]
+
+    interval.cols = grep("\\.(upper)|(lower)$", colnames(dataset.folds), value = TRUE)
+
+    flog.info("Phase 1")
+
+    for (i in 1:no.folds)
+    {
+        flog.info(paste("Outer fold", i))
+
+        for (j in 1:no.folds)
+        {
+            flog.info(paste("Inner fold", j))
+
+            fold.training = dataset.folds[agg.outer.id == i &
+                                          agg.inner.id == j &
+                                          agg.type == "training",
+                                          interval.cols, with = FALSE]
+
+            fold.testing  = dataset.folds[agg.outer.id == i &
+                                          agg.inner.id == j &
+                                          agg.type == "testing",
+                                          interval.cols, with = FALSE]
+
+            browser()
+        }
+    }
+
+    flog.info("Phase 2")
+
+    for (i in 1:no.folds)
+    {
+        flog.info(paste("Outer fold", i))
+
+        fold.training = dataset.folds[agg.outer.id == i &
+                                      is.na(agg.inner.id) &
+                                      agg.type == "training",
+                                      interval.cols,
+                                      with = FALSE]
+        fold.testing  = dataset.folds[agg.outer.id == i &
+                                      is.na(agg.inner.id) &
+                                      agg.type == "testing",
+                                      interval.cols,
+                                      with = FALSE]
+    }
+}
+
 # additional functions
 
 setup.logger = function(output.file, overwrite.existing.files)
