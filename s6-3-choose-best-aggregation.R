@@ -32,6 +32,9 @@ for (dataset.name in DATASETS.NAMES)
             readRDS(dataset.agg.folds.file.path)
 
         # TODO: del begin
+        flog.warn("TO REMOVE")
+
+        set.seed(1)
 
         tmp.x = foreach(i = 1:length(CLASSIFIERS.LIST), .combine = cbind) %do%
         {cbind(runif(nrow(dataset.agg.folds), 0, 0.5), runif(nrow(dataset.agg.folds), 0.5, 1))}
