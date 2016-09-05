@@ -1,6 +1,7 @@
 #########################
 # t-operations
 #########################
+# A.1.2, par. Triangular operations
 TNORM.MIN = min
 TCONORM.MIN = max
 TNORM.PROD = prod
@@ -36,7 +37,7 @@ GEN.SOFT = function(copula, lambda){
 #########################
 # Fuzzy Integrals
 #########################
-CHOQUET.INTEGRAL = function(measure, representant.selector) {
+CHOQUET.INTEGRAL = function(measure, representant.selector) { # (A.8)
     force(measure);force(representant.selector)
     return(function(m) {
         reps = representant.selector(m)
@@ -60,7 +61,7 @@ CHOQUET.INTEGRAL = function(measure, representant.selector) {
     })
 }
 
-SUGENO.INTEGRAL = function(measure, representant.selector) {
+SUGENO.INTEGRAL = function(measure, representant.selector) { # (A.9)
     force(measure);force(representant.selector)
     return(function(m) {
         reps = representant.selector(m)
@@ -89,12 +90,13 @@ SUGENO.INTEGRAL = function(measure, representant.selector) {
 # the size of the universe of discourse. Returns Single number representing the
 # measure of given fuzzy set.
 #########################
-MEASURE.CARDINALITY = function(e,n){
+MEASURE.CARDINALITY = function(e,n){ # (A.10)
     return(length(e)/n)
 }
+
 ###W.AUC =c(0.9143,0.8839,0.8890,0.9241,0.9135, 0.8985)-0.85
 ###W.AUC = W.AUC/sum(W.AUC)
-###MEASURE.ADDITIVE.AUC = function(e,n){
+###MEASURE.ADDITIVE.AUC = function(e,n){ # (A.11)
 ###    return(sum(W.AUC[e]))
 ###}
 
@@ -109,17 +111,17 @@ MEASURE.CARDINALITY = function(e,n){
 # function. Returns vector of length *ncol(m)* containing selected representatnts.
 # Selectors are used in e.g. weighted mean aggregatoin functions
 #########################
-SELECTOR.MIN = function(m){
+SELECTOR.MIN = function(m){ # A.1.2, par. 1
     apply(m,2,function(v){
         return(v[[1]])
     })
 }
-SELECTOR.MAX = function(m){
+SELECTOR.MAX = function(m){ # A.1.2, par. 1
     apply(m,2,function(v){
         return(v[[2]])
     })
 }
-SELECTOR.CENTER = function(m){
+SELECTOR.CENTER = function(m){ # A.1.2, par. 1
     apply(m,2,function(v){
         return((v[[1]]+v[[2]])/2)
     })
@@ -149,7 +151,7 @@ GEN.ORDER.WEIGHT = function(weight.gen){
 # Numeric cutoff takes single number as its argument and returns binary diagnosis
 # or *NA*.
 #########################
-CUTOFF.NUMERIC.CRISP = function(number){
+CUTOFF.NUMERIC.CRISP = function(number){ # (A.18)
     if(number>1 || number <0){
         stop("CUTOFF.NUMERIC.CRISP: Number ",number," agrument must be in [0,1].")
     }
@@ -159,7 +161,7 @@ CUTOFF.NUMERIC.CRISP = function(number){
         return(0)
     }
 }
-GEN.CUTOFF.NUMERIC.WITH.MARGIN = function(margin){
+GEN.CUTOFF.NUMERIC.WITH.MARGIN = function(margin){ # (A.18)
     force(margin)
     return(function(number){
         if(number>1 || number <0){
@@ -185,7 +187,7 @@ CUTOFF.NUMERIC.MARGIN = GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.025)
 # Interval cutoff takes an interval as its argument and returns binary diagnosis
 # or *NA*.
 #########################
-CUTOFF.CRISP = function(interval){
+CUTOFF.CRISP = function(interval){ # (A.19)
     if(interval[[1]]<0 || interval[[2]]>1 || round(interval[[1]],3)>round(interval[[2]],3)){
         stop("CUTOFF.CRISP: Interval [",interval[[1]],', ',interval[[2]],"] argument must be contained in [0,1].")
     }
@@ -199,7 +201,7 @@ CUTOFF.CRISP = function(interval){
         }
     }
 }
-GEN.CUTOFF.WITH.MARGIN = function(margin){
+GEN.CUTOFF.WITH.MARGIN = function(margin){ # (A.20)
     force(margin)
     function(interval){
         if(interval[[1]]<0 || interval[[2]]>1 || round(interval[[1]],3)>round(interval[[2]],3)){
@@ -221,7 +223,7 @@ GEN.CUTOFF.WITH.MARGIN = function(margin){
     }
 }
 CUTOFF.MARGIN = GEN.CUTOFF.WITH.MARGIN(0.025)
-GEN.CUTOFF.FROM.NUMERIC = function(representant.selector, cutoff.numeric){
+GEN.CUTOFF.FROM.NUMERIC = function(representant.selector, cutoff.numeric){ # (A.19)
     force(representant.selector);force(cutoff.numeric)
     return(function(interval){
         rep = representant.selector(matrix(interval))
@@ -231,7 +233,7 @@ GEN.CUTOFF.FROM.NUMERIC = function(representant.selector, cutoff.numeric){
 CUTOFF.CENTER.MARGIN = GEN.CUTOFF.FROM.NUMERIC(SELECTOR.CENTER, CUTOFF.NUMERIC.MARGIN)
 CUTOFF.MAX.MARGIN = GEN.CUTOFF.FROM.NUMERIC(SELECTOR.MAX, CUTOFF.NUMERIC.MARGIN)
 
-INTERVAL.INTERSECTION = function (i1, i2) {
+INTERVAL.INTERSECTION = function (i1, i2) { # (A.21)
     a = max(i1[[1]], i2[[1]])
     b = min(i1[[2]], i2[[2]])
     if(a<=b){
@@ -292,29 +294,29 @@ GEN.CUTOFF.COMMON.PART.STRICT = function(margin){
 # Returns vector of length *ncol(m)* containing weights.
 # Selectors are used in e.g. weighted mean aggregatoin functions
 #########################
-WEIGHT.1 = function(m){
+WEIGHT.1 = function(m){ # (A.1)
     # constant weights
     return(rep(1,times=ncol(m)))
 }
-WEIGHT.WIDTH = function(m){
+WEIGHT.WIDTH = function(m){ # (A.2)
     # intervals weighted by their width
     return(apply(m,2,function(interval){
         return(1-(interval[[2]]-interval[[1]]))
     }))
 }
-WEIGHT.WIDTH.MEAN = function(m){
+WEIGHT.WIDTH.MEAN = function(m){ # (A.5)
     # intervals weighted by their width
     return(apply(m,2,function(interval){
         return(mean(interval) * (1 - (interval[[2]] - interval[[1]])))
     }))
 }
-WEIGHT.ENTROPY.MEAN = function(m){
+WEIGHT.ENTROPY.MEAN = function(m){ # (A.4)
     # intervals weighted by the distance of their center from 0.5
     return(apply(m,2,function(interval){
         return(2*abs(0.5-(interval[[1]]+interval[[2]])/2))
     }))
 }
-WEIGHT.ENTROPY.ENDPOINT = function(m){
+WEIGHT.ENTROPY.ENDPOINT = function(m){ # (A.3)
     # intervals weighted by minimum distance of their endpoints form 0.5
     return(apply(m,2,function(interval){
         if(interval[[1]]<0.5 && interval[[2]]>0.5){
@@ -329,9 +331,9 @@ WEIGHT.ENTROPY.ENDPOINT = function(m){
     }))
 }
 # selectors and weights has the same interface and in this case it can be used interchangeably
-WEIGHT.MEMBERSHIP.MIN = SELECTOR.MIN
-WEIGHT.MEMBERSHIP.CENTER = SELECTOR.CENTER
-WEIGHT.MEMBERSHIP.MAX = SELECTOR.MAX
+WEIGHT.MEMBERSHIP.MIN = SELECTOR.MIN       # between (A.4) and (A.5)
+WEIGHT.MEMBERSHIP.CENTER = SELECTOR.CENTER # between (A.4) and (A.5)
+WEIGHT.MEMBERSHIP.MAX = SELECTOR.MAX       # between (A.4) and (A.5)
 GEN.WEIGHT.OWA = function(weights, order.func){
     # Implements basic OWA weighting strategy. *weights* argument should be
     # numeric vector. *order.func* takes *m* matrix and return vector of length
@@ -429,15 +431,21 @@ WEIGHT.OWA.MEMBERSHIP.MAX.DEC = GEN.WEIGHT.OWA(OWA.WEIGTHS.VECTOR.DEC, ORDER.MEM
 #########################
 # Lists of aggregation helpers
 #########################
-AGGR.SELECTORS = c(SELECTOR.MIN, SELECTOR.MAX, SELECTOR.CENTER)
-AGGR.SELECTORS.NAME = c("min", "max", "cen")
+AGGR.SELECTORS      = c(SELECTOR.MIN, SELECTOR.MAX, SELECTOR.CENTER)
+AGGR.SELECTORS.NAME = c("min",        "max",        "cen")
 
-AGGR.CUTOFFS.NUMERIC = c(CUTOFF.NUMERIC.CRISP,
-                         GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.025),
-                         GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.075),
-                         GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.15),
-                         GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.25))
-AGGR.CUTOFFS.NUMERIC.NAME = c('0.0','0.025','0.075','0.15','0.25')
+AGGR.CUTOFFS.NUMERIC      = c(CUTOFF.NUMERIC.CRISP#,
+                              #GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.025),
+                              #GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.075),
+                              #GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.15),
+                              #GEN.CUTOFF.NUMERIC.WITH.MARGIN(0.25)
+                              )
+AGGR.CUTOFFS.NUMERIC.NAME = c('0.0'#,
+                              #'0.025',
+                              #'0.075',
+                              #'0.15',
+                              #'0.25'
+                              )
 
 AGGR.CUTOFFS = apply(expand.grid(AGGR.SELECTORS, AGGR.CUTOFFS.NUMERIC), 1, function(row){
     GEN.CUTOFF.FROM.NUMERIC(row[[1]], row[[2]])
@@ -445,25 +453,44 @@ AGGR.CUTOFFS = apply(expand.grid(AGGR.SELECTORS, AGGR.CUTOFFS.NUMERIC), 1, funct
 AGGR.CUTOFFS.NAME = apply(expand.grid(AGGR.SELECTORS.NAME, AGGR.CUTOFFS.NUMERIC.NAME), 1, function(row){
     paste('(',row[[1]], '_', row[[2]],')',sep='')
 })
-AGGR.CUTOFFS = c(AGGR.CUTOFFS,
-                 CUTOFF.CRISP,
-                 GEN.CUTOFF.WITH.MARGIN(0.025),
-                 GEN.CUTOFF.WITH.MARGIN(0.075),
-                 GEN.CUTOFF.WITH.MARGIN(0.15),
-                 GEN.CUTOFF.WITH.MARGIN(0.25),
-                 GEN.CUTOFF.WITH.MARGIN(-0.025),
-                 GEN.CUTOFF.WITH.MARGIN(-0.075),
-                 GEN.CUTOFF.WITH.MARGIN(-0.15),
-                 GEN.CUTOFF.WITH.MARGIN(-0.25),
-                 GEN.CUTOFF.COMMON.PART(0.025),
-                 GEN.CUTOFF.COMMON.PART(0.075),
-                 GEN.CUTOFF.COMMON.PART(0.15),
-                 GEN.CUTOFF.COMMON.PART(0.25),
-                 GEN.CUTOFF.COMMON.PART.STRICT(0.025),
-                 GEN.CUTOFF.COMMON.PART.STRICT(0.075),
-                 GEN.CUTOFF.COMMON.PART.STRICT(0.15),
-                 GEN.CUTOFF.COMMON.PART.STRICT(0.25))
-AGGR.CUTOFFS.NAME = c(AGGR.CUTOFFS.NAME, '0.0','0.025','0.075','0.15','0.25','m0.025','m0.075','m0.15','m0.25','(c_0.025)','(c_0.075)','(c_0.15)','(c_0.25)','(cs_0.025)','(cs_0.075)','(cs_0.15)','(cs_0.25)')
+AGGR.CUTOFFS = c(AGGR.CUTOFFS#,
+                 #CUTOFF.CRISP,
+                 #GEN.CUTOFF.WITH.MARGIN(0.025),
+                 #GEN.CUTOFF.WITH.MARGIN(0.075),
+                 #GEN.CUTOFF.WITH.MARGIN(0.15),
+                 #GEN.CUTOFF.WITH.MARGIN(0.25),
+                 #GEN.CUTOFF.WITH.MARGIN(-0.025),
+                 #GEN.CUTOFF.WITH.MARGIN(-0.075),
+                 #GEN.CUTOFF.WITH.MARGIN(-0.15),
+                 #GEN.CUTOFF.WITH.MARGIN(-0.25),
+                 #GEN.CUTOFF.COMMON.PART(0.025),
+                 #GEN.CUTOFF.COMMON.PART(0.075),
+                 #GEN.CUTOFF.COMMON.PART(0.15),
+                 #GEN.CUTOFF.COMMON.PART(0.25),
+                 #GEN.CUTOFF.COMMON.PART.STRICT(0.025),
+                 #GEN.CUTOFF.COMMON.PART.STRICT(0.075),
+                 #GEN.CUTOFF.COMMON.PART.STRICT(0.15),
+                 #GEN.CUTOFF.COMMON.PART.STRICT(0.25)
+                 )
+AGGR.CUTOFFS.NAME = c(AGGR.CUTOFFS.NAME#,
+                      #'0.0',
+                      #'0.025',
+                      #'0.075',
+                      #'0.15',
+                      #'0.25',
+                      #'m0.025',
+                      #'m0.075',
+                      #'m0.15',
+                      #'m0.25',
+                      #'(c_0.025)',
+                      #'(c_0.075)',
+                      #'(c_0.15)',
+                      #'(c_0.25)',
+                      #'(cs_0.025)',
+                      #'(cs_0.075)',
+                      #'(cs_0.15)',
+                      #'(cs_0.25)'
+                      )
 
 AGGR.WEIGHTS = c(WEIGHT.1,
                  WEIGHT.WIDTH,
