@@ -5,8 +5,7 @@
 
 # config
 
-MRO_VERSION="3.3.0"
-MRO_UBUNTU="14.4"
+MRO_VERSION="3.3.1"
 SSH_OPTIONS="-o ConnectTimeout=5 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -q"
 SSH_USER="root"
 SSHPASS_PWD="wmi"
@@ -172,32 +171,15 @@ install_mro()
 {
     step "Installing Microsoft R Open"
     echo
-    # dependency
-    try wget http://ftp.debian.org/debian/pool/main/libj/libjpeg8/libjpeg8_8d1-2_amd64.deb
-    try gdebi -n libjpeg8_8d1-2_amd64.deb
-    rm -f libjpeg8_8d1-2_amd64.deb
-
-    # install Microsoft R Open
-    try wget https://mran.microsoft.com/install/mro/${MRO_VERSION}/MRO-${MRO_VERSION}-Ubuntu-${MRO_UBUNTU}.x86_64.deb
-    try gdebi -n MRO-${MRO_VERSION}-Ubuntu-${MRO_UBUNTU}.x86_64.deb
-    rm -f MRO-${MRO_VERSION}-Ubuntu-${MRO_UBUNTU}.x86_64.deb
+    
+    try wget https://mran.microsoft.com/install/mro/${MRO_VERSION}/microsoft-r-open-${MRO_VERSION}.tar.gz
+    try tar -xvf microsoft-r-open-${MRO_VERSION}.tar.gz
+    try gdebi -n microsoft-r-open/deb/microsoft-r-open-mro-${MRO_VERSION:0:3}.deb
+    try gdebi -n microsoft-r-open/deb/microsoft-r-open-foreachiterators-${MRO_VERSION:0:3}.deb
+    try gdebi -n microsoft-r-open/deb/microsoft-r-open-mkl-${MRO_VERSION:0:3}.deb
+    rm -rf microsoft-r-open*
     
     try apt-get clean
-    next
-    check_if_command_error
-}
-
-install_mkl()
-{
-    step "Installing Intel MKL"
-    echo
-    try wget https://mran.microsoft.com/install/mro/${MRO_VERSION}/RevoMath-${MRO_VERSION}.tar.gz
-    try tar -xzf RevoMath-${MRO_VERSION}.tar.gz
-    try cd RevoMath
-    try sed -i '16,18d' RevoMath.sh
-    try echo 1 | ./RevoMath.sh
-    try cd ..
-    rm -rf RevoMath* 
     next
     check_if_command_error
 }
@@ -286,7 +268,6 @@ hosts_install()
     case "$1" in
         "env")          info "Installing environment on hosts" ;;
         "mro")          info "Installing Microsoft R Open on hosts" ;;
-        "mkl")          info "Installing Intel MKL on hosts" ;;
         "r_libraries")  info "Installing R libraries on hosts" ;;
         *)              fail "Unknown remote install command"; report_error 1; check_if_command_error
     esac
@@ -322,7 +303,6 @@ hosts_install()
 
 hosts_install_env()         { hosts_install env; }
 hosts_install_mro()         { hosts_install mro; }
-hosts_install_mkl()         { hosts_install mkl; }
 hosts_install_r_libraries() { hosts_install r_libraries; }
 
 hosts_power_off()
@@ -388,7 +368,6 @@ hosts_check_install_log()
 
 hosts_check_install_log_env()         { hosts_check_install_log env; }
 hosts_check_install_log_mro()         { hosts_check_install_log mro; }
-hosts_check_install_log_mkl()         { hosts_check_install_log mkl; }
 hosts_check_install_log_r_libraries() { hosts_check_install_log r_libraries; }
 
 hosts_check_worker_log()
@@ -429,7 +408,6 @@ my_configure_hosts()
     hosts_push_project_r_files
     hosts_install_env
     hosts_install_mro
-    #hosts_install_mkl
     #hosts_install_r_libraries
         hosts_push_r_libraries_dump
     make_remote_connection_list_nproc
@@ -445,7 +423,6 @@ configure_hosts()
     hosts_push_project_r_files
     hosts_install_env
     hosts_install_mro
-    #hosts_install_mkl
     hosts_install_r_libraries
         #hosts_push_r_libraries_dump
     make_remote_connection_list_nproc
