@@ -14,7 +14,7 @@ SSH_KEY_PRIV="rsa-priv.key"
 SSH_KEY_PUB="rsa-pub.key"
 HOSTS_FILE="remote-hosts.txt"
 CONNECTION_LIST_FILE="remote-connection-list.txt"
-DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev libbz2-dev"
+DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev libbz2-dev libicu-dev"
 REMOTE_DETECT_LOGICAL_CPUS="FALSE"
 
 SHELL_SCRIPT=$(basename $0)
