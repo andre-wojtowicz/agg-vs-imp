@@ -177,6 +177,7 @@ install_mro()
     try gdebi -n microsoft-r-open/deb/microsoft-r-open-mro-${MRO_VERSION:0:3}.deb
     try gdebi -n microsoft-r-open/deb/microsoft-r-open-foreachiterators-${MRO_VERSION:0:3}.deb
     try gdebi -n microsoft-r-open/deb/microsoft-r-open-mkl-${MRO_VERSION:0:3}.deb
+    try R CMD javareconf
     rm -rf microsoft-r-open*
     
     try apt-get clean
@@ -402,7 +403,7 @@ check_if_command_error()
 my_configure_hosts()
 {
     #generate_ssh_keys
-    hosts_push_ssh_key
+    #hosts_push_ssh_key
     hosts_push_shell_script
     dump_project_r_files
     hosts_push_project_r_files

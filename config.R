@@ -13,7 +13,7 @@ USER.INIT.FILE        = "init.R.user"
 # checkpoint library
 
 CHECKPOINT.QUICK.LOAD    = FALSE # if TRUE then skip testing https and checking url
-CHECKPOINT.MRAN.URL      = "https://mran.microsoft.com/"
+CHECKPOINT.MRAN.URL      = "http://mran.microsoft.com/"
 CHECKPOINT.SNAPSHOT.DATE = "2016-07-01"
 
 # logging system
