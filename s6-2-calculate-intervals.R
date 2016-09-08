@@ -109,20 +109,24 @@ for (dataset.name in DATASETS.NAMES)
         flog.info(paste("Starting from case no.:", start.id))
 
         no.full.jobs = (nrow(dataset.aggregation.folds.raw.preprocessed) - start.id + 1) %/%
-            (foreach::getDoParWorkers() * PARALLEL.NO.JOBS.PER.CHUNK)
+            (foreach::getDoParWorkers() * PARALLEL.NO.JOBS.PER.CHUNK *
+                 PARALLEL.NO.JOBS.MULTIPLIER)
         no.rem.jobs  = (nrow(dataset.aggregation.folds.raw.preprocessed) - start.id + 1) %%
-            (foreach::getDoParWorkers() * PARALLEL.NO.JOBS.PER.CHUNK)
+            (foreach::getDoParWorkers() * PARALLEL.NO.JOBS.PER.CHUNK *
+                 PARALLEL.NO.JOBS.MULTIPLIER)
+
+
 
         seq.jobs.partition =
             split(start.id:nrow(dataset.aggregation.folds.raw.preprocessed),
                   rep(1:(no.full.jobs + ifelse(no.rem.jobs > 0, 1, 0)),
                       if (no.rem.jobs > 0)
                       {
-                        c(rep(foreach::getDoParWorkers() *
-                                  PARALLEL.NO.JOBS.PER.CHUNK, no.full.jobs), no.rem.jobs)
+                        c(rep(foreach::getDoParWorkers() * PARALLEL.NO.JOBS.PER.CHUNK *
+                                  PARALLEL.NO.JOBS.MULTIPLIER, no.full.jobs), no.rem.jobs)
                       } else {
-                        rep(foreach::getDoParWorkers() * PARALLEL.NO.JOBS.PER.CHUNK,
-                            no.full.jobs)
+                        rep(foreach::getDoParWorkers() * PARALLEL.NO.JOBS.PER.CHUNK *
+                                PARALLEL.NO.JOBS.MULTIPLIER, no.full.jobs)
                       }
                   )
             )
@@ -133,7 +137,7 @@ for (dataset.name in DATASETS.NAMES)
 
             par.jobs.partition = caret::createFolds(
                 seq.jobs.partition[[seq.job.id]],
-                foreach::getDoParWorkers())
+                foreach::getDoParWorkers() * PARALLEL.NO.JOBS.MULTIPLIER)
 
             interval.predictions = foreach::foreach(
                 no.job         = 1:length(par.jobs.partition),
