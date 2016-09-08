@@ -23,7 +23,8 @@ LOGGER.OUTPUT.S0.FILE           = "output-s0.log"
 LOGGER.OUTPUT.S1.FILE           = "output-s1.log"
 LOGGER.OUTPUT.S2.FILE           = "output-s2.log"
 LOGGER.OUTPUT.S3.FILE           = "output-s3.log"
-LOGGER.OUTPUT.S4.FILE           = "output-s4.log"
+LOGGER.OUTPUT.S4.1.FILE         = "output-s4-1.log"
+LOGGER.OUTPUT.S4.2.FILE         = "output-s4-2.log"
 LOGGER.OUTPUT.S5.FILE           = "output-s5.log"
 LOGGER.OUTPUT.S6.1.FILE         = "output-s6-1.log"
 LOGGER.OUTPUT.S6.2.FILE         = "output-s6-2.log"
@@ -47,6 +48,12 @@ CLASSIFIERS.DIR                 = "classifiers"
 CLASSIFIERS.LEARNED =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
                                       CLASSIFIERS.NAME.PATTERN, ".rds"))
+CLASSIFIERS.PERFORMANCE.ORIGINAL =
+    file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
+                                      CLASSIFIERS.NAME.PATTERN,  "-performance-original.rds"))
+CLASSIFIERS.PERFORMANCE.INTERVAL =
+    file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
+                                      CLASSIFIERS.NAME.PATTERN, "-performance-interval.rds"))
 CLASSIFIERS.IMPUTATION.BASELINE =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-imputation-baseline.rds"))
 CLASSIFIERS.IMPUTATION.MODEL =
