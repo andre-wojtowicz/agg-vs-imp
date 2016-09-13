@@ -134,8 +134,11 @@ for (dataset.name in DATASETS.NAMES)
                 if (nrow(dataset.filtered.nat.complete) > 0)
                 {
                     cf.matrix = suppressWarnings(
-                        caret::confusionMatrix(dataset.filtered.nat.complete$Predictions,
-                                               dataset.filtered.nat.complete$Reference))
+                        caret::confusionMatrix(
+                            factor(dataset.filtered.nat.complete$Predictions, levels = c(0, 1)),
+                            factor(dataset.filtered.nat.complete$Reference,   levels = c(0, 1))
+                        )
+                    )
 
                     flog.info(paste("  Accuracy:    ", round(cf.matrix$overall["Accuracy"], 3)))
                     flog.info(paste("  Sensitivity: ", round(cf.matrix$byClass["Sensitivity"], 3)))
