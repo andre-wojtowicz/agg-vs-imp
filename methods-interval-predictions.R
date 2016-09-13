@@ -174,8 +174,9 @@ optim.factor.numeric.nsdf = function(model, case.predictors.all, factors.configs
 
     eval.fac.num.points = expand.grid.df(factors.configs, eval.num.points)
 
-    foreach::foreach(idx = 1:nrow(eval.fac.num.points),
-                     .combine  = c) %do%
+    ret.vals = c()
+
+    for (idx in 1:nrow(eval.fac.num.points))
     {
         case.config = case.predictors.all # copy
 
@@ -185,9 +186,12 @@ optim.factor.numeric.nsdf = function(model, case.predictors.all, factors.configs
                 eval.fac.num.points[idx, j]
         }
 
-        suppressWarnings(stats::predict(model, case.config,
-                                        type = "prob", na.action = NULL)[1, 2])
+        ret.vals = c(ret.vals,
+                     suppressWarnings(stats::predict(model, case.config,
+                                        type = "prob", na.action = NULL)[1, 2]))
     }
+
+    ret.vals
 }
 
 calculate.optim.interval = function(case.predictors.all, case.class,
