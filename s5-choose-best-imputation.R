@@ -30,6 +30,8 @@ for (dataset.name in DATASETS.NAMES)
 
     dataset.obscured = readRDS(dataset.obscured.file.path)
 
+    dataset.num.missing.attributes = rowSums(is.na(dataset.obscured))
+
     flog.info(paste("Baseline model:", CLASSIFIERS.BASELINE))
 
     baseline.imputation.model.file.path =
@@ -69,6 +71,7 @@ for (dataset.name in DATASETS.NAMES)
                                             list(baseline.model),
                                             NCV.FOLDS, NCV.PERFORMANCE.SELECTOR,
                                             NCV.PERFORMANCE.MAXIMIZE,
+                                            dataset.num.missing.attributes,
                                             seed.cv)
 
         saveRDS(baseline.imputation.model, baseline.imputation.model.file.path)
@@ -77,15 +80,32 @@ for (dataset.name in DATASETS.NAMES)
         flog.warn("Baseline model exists, skipping learning")
 
         baseline.imputation.model = readRDS(baseline.imputation.model.file.path)
+    }
 
-        folds.performances = baseline.imputation.model$folds.performances
+    flog.info(paste("Choosed imputation:", baseline.imputation.model$imputation.name))
 
-        flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ":    ",
-                         round(mean(folds.performances[[NCV.PERFORMANCE.SELECTOR]]), 3)))
-        flog.info(paste0("Estimated Sensitivity: ",
-                         round(mean(folds.performances[["Sensitivity"]]), 3)))
-        flog.info(paste0("Estimated Specificity: ",
-                         round(mean(folds.performances[["Specificity"]]), 3)))
+    folds.performances = baseline.imputation.model$folds.performances
+
+    flog.info("Overall:")
+    flog.info(paste0("  Accuracy:    ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Accuracy) %>% unlist %>% mean, 3)))
+    flog.info(paste0("  Sensitivity: ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Sensitivity) %>% unlist %>% mean, 3)))
+    flog.info(paste0("  Specificity: ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Specificity) %>% unlist %>% mean, 3)))
+
+    for (num.missing.attr in 0:max(dataset.num.missing.attributes))
+    {
+        flog.info(paste("Missing attributes:", num.missing.attr))
+        flog.info(paste0("  Accuracy:    ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Accuracy) %>%
+                unlist, na.rm = TRUE), 3)))
+        flog.info(paste0("  Sensitivity: ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Sensitivity) %>%
+                unlist, na.rm = TRUE), 3)))
+        flog.info(paste0("  Specificity: ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Specificity) %>%
+                unlist, na.rm = TRUE), 3)))
     }
 
     flog.info(paste(rep("*", 10), collapse = ""))
@@ -140,6 +160,7 @@ for (dataset.name in DATASETS.NAMES)
             cross.validation.for.imputation(datasets.imputed, models, NCV.FOLDS,
                                             NCV.PERFORMANCE.SELECTOR,
                                             NCV.PERFORMANCE.MAXIMIZE,
+                                            dataset.num.missing.attributes,
                                             seed.cv)
 
         saveRDS(classifier.imputation.model, classifier.imputation.model.file.path)
@@ -149,16 +170,34 @@ for (dataset.name in DATASETS.NAMES)
 
         classifier.imputation.model =
             readRDS(classifier.imputation.model.file.path)
-
-        folds.performances = classifier.imputation.model$folds.performances
-
-        flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ":    ",
-                         round(mean(folds.performances[[NCV.PERFORMANCE.SELECTOR]]), 3)))
-        flog.info(paste0("Estimated Sensitivity: ",
-                         round(mean(folds.performances[["Sensitivity"]]), 3)))
-        flog.info(paste0("Estimated Specificity: ",
-                         round(mean(folds.performances[["Specificity"]]), 3)))
     }
+
+    flog.info(paste("Choosed classifier:", classifier.imputation.model$model$method))
+    flog.info(paste("Choosed imputation:", classifier.imputation.model$imputation.name))
+
+    folds.performances = classifier.imputation.model$folds.performances
+
+    flog.info(paste0("  Accuracy:    ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Accuracy) %>% unlist %>% mean, 3)))
+    flog.info(paste0("  Sensitivity: ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Sensitivity) %>% unlist %>% mean, 3)))
+    flog.info(paste0("  Specificity: ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Specificity) %>% unlist %>% mean, 3)))
+
+    for (num.missing.attr in 0:max(dataset.num.missing.attributes))
+    {
+        flog.info(paste("Missing attributes:", num.missing.attr))
+        flog.info(paste0("  Accuracy:    ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Accuracy) %>%
+                unlist, na.rm = TRUE), 3)))
+        flog.info(paste0("  Sensitivity: ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Sensitivity) %>%
+                unlist, na.rm = TRUE), 3)))
+        flog.info(paste0("  Specificity: ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Specificity) %>%
+                unlist, na.rm = TRUE), 3)))
+    }
+
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }

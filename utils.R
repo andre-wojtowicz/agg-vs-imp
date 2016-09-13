@@ -161,6 +161,7 @@ nested.cross.validation = function(dataset, model.name,
 cross.validation.for.imputation = function(datasets, models, no.folds,
                                            performance.selector,
                                            performance.maximize,
+                                           num.missing.attributes,
                                            .random.seed = NULL)
 {
     if (!is.null(.random.seed))
@@ -228,8 +229,30 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
         )
 
         folds.performances = rbind(folds.performances,
-                                   data.frame(t(c(cf.matrix$overall,
-                                                  cf.matrix$byClass))))
+            data.frame(Fold = i,
+                       Missing.attributes = NA,
+                       Accuracy     = cf.matrix$overall["Accuracy"],
+                       Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                       Specificity  = cf.matrix$byClass["Specificity"]))
+
+        for (j in 0:max(num.missing.attributes))
+        {
+            nma.selection =
+                unname(unlist(idx.test)) %in% which(unname(num.missing.attributes) == j)
+
+            cf.matrix = suppressWarnings(
+                caret::confusionMatrix(predictions.unified[nma.selection],
+                                       datasets.test[[1]][nma.selection, ncol(datasets.test[[1]])])
+            )
+
+            folds.performances = rbind(folds.performances,
+                data.frame(Fold = i,
+                           Missing.attributes = j,
+                           Accuracy     = cf.matrix$overall["Accuracy"],
+                           Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                           Specificity  = cf.matrix$byClass["Specificity"]))
+
+        }
 
     }
 
@@ -262,22 +285,8 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
     dataset      = datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]]
     model        = models[[params.grid[best.id, 2]]]
 
-    if (length(models) > 1)
-    {
-        flog.info(paste("Choosed classifier:", model$method))
-    }
-
     choosed.imputation.name =
         names(datasets[[params.grid[best.id, 2]]])[params.grid[best.id, 1]]
-
-    flog.info(paste("Choosed imputation:", choosed.imputation.name))
-
-    flog.info(paste0("Estimated ", performance.selector, ":    ",
-                     round(mean(folds.performances[[performance.selector]]), 3)))
-    flog.info(paste0("Estimated Sensitivity: ",
-                     round(mean(folds.performances[["Sensitivity"]]), 3)))
-    flog.info(paste0("Estimated Specificity: ",
-                     round(mean(folds.performances[["Specificity"]]), 3)))
 
     return(list("model"              = model,
                 "imputation.name"    = choosed.imputation.name,
