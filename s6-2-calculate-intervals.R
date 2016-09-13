@@ -23,9 +23,6 @@ for (dataset.name in DATASETS.NAMES)
     dataset.aggregation.folds.raw =
         readRDS(dataset.aggregation.folds.raw.file.path)
 
-    #dataset.aggregation.folds.raw = dataset.aggregation.folds.raw[1:21]
-    #sample(nrow(dataset.aggregation.folds.raw), 100)] # TODO: del
-
     flog.info(paste("No. cases:", nrow(dataset.aggregation.folds.raw)))
 
 
@@ -161,147 +158,11 @@ for (dataset.name in DATASETS.NAMES)
                     case.predictors.used = case.predictors.all[
                         , as.character(used.predictors), with = FALSE]
 
-                    interval.lower = NULL
-                    interval.upper = NULL
+                    interval = calculate.optim.interval(case.predictors.all, case.class,
+                                                        case.predictors.used)
 
-                    if (all(!is.na(case.predictors.used)))
-                    {
-                        # [1] All features are present
-                        flog.info(paste("Case:", i, "- no optimization"))
-
-                        predicted.value =
-                            suppressWarnings(
-                                stats::predict(model, case.predictors.all,
-                                               type = "prob", na.action = NULL)[1, 2])
-
-                        interval.lower = predicted.value
-                        interval.upper = predicted.value
-
-                    } else {
-
-                        features.factors =
-                            names(which(sapply(colnames(case.predictors.used),
-                                               function(x){
-                                                   is.factor(case.predictors.used[[x]])})
-                                        == TRUE))
-
-                        features.factors.nas =
-                            features.factors[is.na(case.predictors.used[
-                                , features.factors, with = FALSE])]
-
-                        features.numeric =
-                            colnames(case.predictors.used)[!colnames(case.predictors.used)
-                                                           %in% features.factors]
-
-                        features.numeric.nas =
-                            features.numeric[is.na(case.predictors.used[
-                                , features.numeric, with = FALSE])]
-
-                        if (length(features.factors.nas) > 0)
-                        {
-                            factors.configs =
-                                expand.grid(sapply(features.factors.nas,
-                                                   function(x){levels(case.predictors.used[[x]])},
-                                                   simplify = FALSE))
-
-                            colnames(factors.configs) = features.factors.nas
-
-                            if (length(features.numeric.nas) == 0)
-                            {
-                                # [2] Only factor features are not present
-                                flog.info(paste("Case:", i, "- factor grid search"))
-
-                                predicted.values =
-                                    optim.factor.grid.search(model,
-                                                             case.predictors.all,
-                                                             factors.configs)
-
-                                interval.lower = min(predicted.values)
-                                interval.upper = max(predicted.values)
-
-                            } else {
-                                # [3] Factor and numeric features are not present
-                                if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
-                                {
-                                    # [3.1] Non-smooth, derivative-free optimization
-                                    flog.info(paste("Case:", i,
-                                                    "- factor-numeric ns/df optimization"))
-
-                                    predicted.values =
-                                        optim.factor.numeric.nsdf(model,
-                                                                  case.predictors.all,
-                                                                  factors.configs,
-                                                                  features.numeric.nas,
-                                                                  OPTIMIZATION.NUMERIC.BF.REPS)
-
-                                    interval.lower = min(predicted.values)
-                                    interval.upper = max(predicted.values)
-
-                                } else {
-                                    # [3.2] Classic optimization
-                                    flog.info(paste("Case:", i,
-                                                    "- classic factor-numeric optimization"))
-
-                                    predicted.values =
-                                        optim.factor.numeric.classic(
-                                            model,
-                                            case.predictors.all,
-                                            factors.configs,
-                                            features.numeric.nas,
-                                            OPTIMIZATION.NUMERIC.REPS,
-                                            OPTIMIZATION.NUMERIC.METHOD
-                                        )
-
-                                    interval.lower = min(predicted.values[, 1])
-                                    interval.upper = max(predicted.values[, 2])
-                                }
-                            }
-
-                        } else {
-
-                            # [4] Only numeric features are not present
-                            if (model.name %in% OPTIMIZATION.NUMERIC.BF.CLASSIFIERS)
-                            {
-                                # [4.1] Non-smooth, derivative-free optimization
-                                flog.info(paste("Case:", i, "- numeric ns/df optimization"))
-
-                                predicted.values =
-                                    optim.numeric.nsdf(model,
-                                                       case.predictors.all,
-                                                       features.numeric.nas,
-                                                       OPTIMIZATION.NUMERIC.BF.REPS)
-
-                                interval.lower = min(predicted.values)
-                                interval.upper = max(predicted.values)
-
-                            } else {
-                                # [4.2] Classic optimization
-                                flog.info(paste("Case:", i, "- classic numeric optimization"))
-
-                                predicted.values =
-                                    optim.numeric.classic(model,
-                                                          case.predictors.all,
-                                                          features.numeric.nas,
-                                                          OPTIMIZATION.NUMERIC.REPS,
-                                                          OPTIMIZATION.NUMERIC.METHOD)
-
-                                interval.lower = min(predicted.values[1, ])
-                                interval.upper = max(predicted.values[2, ])
-                            }
-                        }
-                    }
-
-
-                    if (any(is.na(  c(interval.lower, interval.upper))) ||
-                        any(is.null(c(interval.lower, interval.upper))))
-                    {
-                        stop.script("Lower and/or upper bound is NA/NULL")
-                    }
-
-                    if (interval.lower > interval.upper)
-                    {
-                        stop.script("Lower bound greater than upper bound")
-                    }
+                    interval.lower = interval[1]
+                    interval.upper = interval[2]
 
                     flog.info(paste0("Predicted interval: [",
                                      round(interval.lower, 4), ", ",

@@ -251,9 +251,7 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
                            Accuracy     = cf.matrix$overall["Accuracy"],
                            Sensitivity  = cf.matrix$byClass["Sensitivity"],
                            Specificity  = cf.matrix$byClass["Specificity"]))
-
         }
-
     }
 
     flog.info("Choosing final model")
@@ -363,38 +361,20 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
             {
                 for (agg.subgroup.id in 1:length(aggregation.strategies[[agg.group.id]]))
                 {
-                    # TODO: del begin
-                    flog.warn("TO REMOVE")
-
-                    inner.folds.performance = rbind(inner.folds.performance,
-                        data.frame(inner.fold      = j,
-                                   agg.group.id    = agg.group.id,
-                                   agg.subgroup.id = agg.subgroup.id,
-                                   performance = runif(1)
-                        )
-                    )
-
-                    next
-
-                    # TODO: del end
-
                     agg.funcs =
                         sapply(aggregation.strategies[[agg.group.id]][[agg.subgroup.id]],
                                "[[", 1)
 
-                    agg.perf = sapply(agg.funcs, function(agg.func)
+                    agg.perf = foreach::foreach(
+                        no.job   = 1:length(agg.funcs),
+                        .combine = c) %dopar%
                     {
+                        agg.func = agg.funcs[[no.job]]
+
                         fold.training.predictions =
                             apply(fold.training, 1, function(row.intervals){
                                 agg.func(matrix(row.intervals, nrow = 2))
                             })
-
-                        # TODO: disable NA-producible functions in aggregation-operators.R
-                        flog.warn("TO REMOVE")
-                        if (any(is.na(fold.training.predictions)))
-                        {
-                            return(ifelse(performance.maximize, 0, 1))
-                        }
 
                         fold.training.performance =
                             caret::confusionMatrix(
@@ -403,7 +383,7 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                             )
 
                         unname(fold.training.performance$overall[performance.selector])
-                    })
+                    }
 
 
                     agg.func.selected = agg.funcs[[
@@ -469,37 +449,16 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
             sapply(aggregation.strategies[[selected.agg.group]][[selected.agg.subgroup]],
                    "[[", 1)
 
-
-        # TODO: del begin
-        flog.warn("TO REMOVE")
-
-        fold.testing.performance = caret::confusionMatrix(
-            factor(sample.int(2, 100, replace = TRUE) - 1, levels = c(0,1)),
-            factor(sample.int(2, 100, replace = TRUE) - 1, levels = c(0,1))
-        )
-
-        folds.performances = rbind(folds.performances,
-                                   data.frame(t(c(fold.testing.performance$overall,
-                                                  fold.testing.performance$byClass))))
-
-        next
-
-        # TODO: del end
-
-
-        agg.perf = sapply(agg.funcs, function(agg.func)
+        agg.perf = foreach::foreach(
+            no.job   = 1:length(agg.funcs),
+            .combine = c) %dopar%
         {
+            agg.func = agg.funcs[[no.job]]
+
             fold.training.predictions =
                 apply(fold.training, 1, function(row.intervals){
                     agg.func(matrix(row.intervals, nrow = 2))
                 })
-
-            # TODO: disable NA-producible functions in aggregation-operators.R
-            flog.warn("TO REMOVE")
-            if (any(is.na(fold.training.predictions)))
-            {
-                return(ifelse(performance.maximize, 0, 1))
-            }
 
             fold.training.performance =
                 caret::confusionMatrix(
@@ -508,7 +467,7 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                 )
 
             unname(fold.training.performance$overall[performance.selector])
-        })
+        }
 
         agg.func.selected = agg.funcs[[
             ifelse(performance.maximize, which.max, which.min)(agg.perf)
@@ -519,15 +478,43 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                 agg.func.selected(matrix(row.intervals, nrow = 2))
             })
 
-        fold.testing.performance =
+        cf.matrix =
             caret::confusionMatrix(
                 factor(fold.testing.predictions, levels = c(0, 1)),
                 factor(fold.testing.class,       levels = c(0, 1))
             )
 
         folds.performances = rbind(folds.performances,
-                                   data.frame(t(c(fold.testing.performance$overall,
-                                                  fold.testing.performance$byClass))))
+            data.frame(Fold = i,
+                       Missing.attributes = NA,
+                       Accuracy     = cf.matrix$overall["Accuracy"],
+                       Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                       Specificity  = cf.matrix$byClass["Specificity"]))
+
+        num.missing.attributes =
+            dataset.folds[agg.outer.id == i &
+                              is.na(agg.inner.id) &
+                              agg.type == "testing",
+                          agg.no.missing.att]
+
+        for (j in 0:max(num.missing.attributes))
+        {
+            nma.selection = which(num.missing.attributes == j)
+
+            cf.matrix = suppressWarnings(
+                caret::confusionMatrix(
+                    factor(fold.testing.predictions[nma.selection], levels = c(0, 1)),
+                    factor(fold.testing.class[nma.selection],       levels = c(0, 1))
+                )
+            )
+
+            folds.performances = rbind(folds.performances,
+                data.frame(Fold = i,
+                           Missing.attributes = j,
+                           Accuracy     = cf.matrix$overall["Accuracy"],
+                           Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                           Specificity  = cf.matrix$byClass["Specificity"]))
+        }
     }
 
     flog.info("Phase 2")
@@ -563,38 +550,20 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
         {
             for (agg.subgroup.id in 1:length(aggregation.strategies[[agg.group.id]]))
             {
-                # TODO: del begin
-                flog.warn("TO REMOVE")
-
-                outer.folds.performance = rbind(outer.folds.performance,
-                    data.frame(outer.fold      = i,
-                               agg.group.id    = agg.group.id,
-                               agg.subgroup.id = agg.subgroup.id,
-                               performance = runif(1)
-                    )
-                )
-
-                next
-
-                # TODO: del end
-
                 agg.funcs =
                     sapply(aggregation.strategies[[agg.group.id]][[agg.subgroup.id]],
                            "[[", 1)
 
-                agg.perf = sapply(agg.funcs, function(agg.func)
+                agg.perf = foreach::foreach(
+                    no.job   = 1:length(agg.funcs),
+                    .combine = c) %dopar%
                 {
+                    agg.func = agg.funcs[[no.job]]
+
                     fold.training.predictions =
                         apply(fold.training, 1, function(row.intervals){
                             agg.func(matrix(row.intervals, nrow = 2))
                         })
-
-                    # TODO: disable NA-producible functions in aggregation-operators.R
-                    flog.warn("TO REMOVE")
-                    if (any(is.na(fold.training.predictions)))
-                    {
-                        return(ifelse(performance.maximize, 0, 1))
-                    }
 
                     fold.training.performance =
                         caret::confusionMatrix(
@@ -603,7 +572,7 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                         )
 
                     unname(fold.training.performance$overall[performance.selector])
-                })
+                }
 
 
                 agg.func.selected = agg.funcs[[
@@ -655,19 +624,16 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
         sapply(aggregation.strategies[[selected.agg.group]][[selected.agg.subgroup]],
                "[[", 1)
 
-    agg.perf = sapply(agg.funcs, function(agg.func)
+    agg.perf = foreach::foreach(
+        no.job   = 1:length(agg.funcs),
+        .combine = c) %dopar%
     {
+        agg.func = agg.funcs[[no.job]]
+
         final.predictions =
             apply(final.dataset, 1, function(row.intervals){
                 agg.func(matrix(row.intervals, nrow = 2))
             })
-
-        # TODO: disable NA-producible functions in aggregation-operators.R
-        flog.warn("TO REMOVE")
-        if (any(is.na(final.predictions)))
-        {
-            return(ifelse(performance.maximize, 0, 1))
-        }
 
         final.performance =
             caret::confusionMatrix(
@@ -676,24 +642,15 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
             )
 
         unname(final.performance$overall[performance.selector])
-    })
+    }
 
     selected.agg.configuration = ifelse(performance.maximize, which.max, which.min)(agg.perf)
 
     selected.agg = aggregation.strategies[[selected.agg.group]][[selected.agg.subgroup]][[
         selected.agg.configuration]]
 
-    flog.info(paste0("Choosed aggregation: ", selected.agg[[2]],
-                     " [", selected.agg[[3]], " ", selected.agg[[4]], "]"))
-
-    flog.info(paste0("Estimated ", performance.selector, ":    ",
-                     round(mean(folds.performances[[performance.selector]]), 3)))
-    flog.info(paste0("Estimated Sensitivity: ",
-                     round(mean(folds.performances[["Sensitivity"]]), 3)))
-    flog.info(paste0("Estimated Specificity: ",
-                     round(mean(folds.performances[["Specificity"]]), 3)))
-
     return(list("model"                = selected.agg[[1]],
+                "aggregation.code"     = selected.agg[[2]],
                 "aggregation.group"    = selected.agg[[3]],
                 "aggregation.subgroup" = selected.agg[[4]],
                 "folds.performances"   = folds.performances))

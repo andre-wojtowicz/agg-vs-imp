@@ -7,7 +7,7 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S6.3.FILE),
 
 flog.info("Step 6-3: choose best aggregation")
 
-#source("init-parallel.R")
+source("init-parallel.R")
 source("aggregation-operators.R")
 
 if (!dir.exists(AGGREGATION.DIR))
@@ -31,23 +31,6 @@ for (dataset.name in DATASETS.NAMES)
         dataset.agg.folds =
             readRDS(dataset.agg.folds.file.path)
 
-        # TODO: del begin
-        flog.warn("TO REMOVE")
-
-        set.seed(1)
-
-        tmp.x = foreach(i = 1:length(CLASSIFIERS.LIST), .combine = cbind) %do%
-        {cbind(runif(nrow(dataset.agg.folds), 0, 0.5), runif(nrow(dataset.agg.folds), 0.5, 1))}
-        colnames(tmp.x) = grep("\\.(upper)|(lower)$", colnames(dataset.agg.folds), value = TRUE)
-        tmp.x = data.frame(tmp.x)
-        setDT(tmp.x)
-
-        dataset.agg.folds[
-            , grep("\\.(upper)|(lower)$", colnames(dataset.agg.folds), value = TRUE) := tmp.x,
-            with = FALSE]
-
-        # TODO: del end
-
         if (any(is.na(dataset.agg.folds[
             , grep("\\.(upper)|(lower)$", colnames(dataset.agg.folds), value = TRUE),
             with = FALSE])))
@@ -70,12 +53,36 @@ for (dataset.name in DATASETS.NAMES)
         agg.model = readRDS(agg.model.file.path)
     }
 
-    folds.performance = attr(agg.model, "folds.performance")
+    folds.performances = attr(agg.model, "folds.performances")
 
-    flog.info(paste0("Estimated ", NCV.PERFORMANCE.SELECTOR, ": ",
-                     round(mean(folds.performance[[NCV.PERFORMANCE.SELECTOR]]), 3)))
+    flog.info(paste0("Choosed aggregation: ",
+                           attr(agg.model, "aggregation.code"),
+                     " [", attr(agg.model, "aggregation.group"),
+                     " ",  attr(agg.model, "aggregation.subgroup"), "]"))
+
+    flog.info("Overall:")
+    flog.info(paste0("  Accuracy:    ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Accuracy) %>% unlist %>% mean, 3)))
+    flog.info(paste0("  Sensitivity: ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Sensitivity) %>% unlist %>% mean, 3)))
+    flog.info(paste0("  Specificity: ", round(folds.performances %>%
+        filter(is.na(Missing.attributes)) %>% select(Specificity) %>% unlist %>% mean, 3)))
+
+    for (num.missing.attr in 0:max(dataset.num.missing.attributes))
+    {
+        flog.info(paste("Missing attributes:", num.missing.attr))
+        flog.info(paste0("  Accuracy:    ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Accuracy) %>%
+                unlist, na.rm = TRUE), 3)))
+        flog.info(paste0("  Sensitivity: ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Sensitivity) %>%
+                unlist, na.rm = TRUE), 3)))
+        flog.info(paste0("  Specificity: ", round(mean(folds.performances %>%
+            filter(Missing.attributes == num.missing.attr) %>% select(Specificity) %>%
+                unlist, na.rm = TRUE), 3)))
+    }
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }
 
-#stop.cluster()
+stop.cluster()
