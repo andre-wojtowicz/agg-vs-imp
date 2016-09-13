@@ -9,10 +9,7 @@ PARALLEL.NO.JOBS.MULTIPLIER        = 2  # no. jobs multiplier per job sequence
                                         # remaining workers in step 6-2
 
 # local
-PARALLEL.LOCAL.METHOD              = switch(Sys.info()[['sysname']],
-                                            Windows = "PSOCK",
-                                            Linux   = "FORK",
-                                            Darwin  = "FORK")
+PARALLEL.LOCAL.METHOD              = "PSOCK"
 
 PARALLEL.LOCAL.NODES               = parallel::detectCores(logical = FALSE)
 PARALLEL.LOCAL.CONNECTION.TIMEOUT  = 5
