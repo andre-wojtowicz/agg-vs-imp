@@ -102,6 +102,11 @@ clusterEvalQ(cl, {
 flog.info("Registering cluster")
 registerDoParallel(cl)
 
+foreach::foreach(i = 1:foreach::getDoParWorkers()) %dopar%
+{
+    flog.info("Foreach startup test")
+}
+
 flog.info(paste(rep("*", 25), collapse = ""))
 
 # perform additional custom init
