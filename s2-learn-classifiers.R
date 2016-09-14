@@ -96,7 +96,7 @@ for (dataset.name in DATASETS.NAMES)
                                             NCV.PERFORMANCE.SELECTOR,
                                             NCV.PERFORMANCE.MAXIMIZE)
 
-            if (model.name == "OneR")
+            if (model.name %in% c("OneR", "J48"))
             {
                 .jcache(model$finalModel$classifier)
             }

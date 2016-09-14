@@ -78,7 +78,10 @@ suppressPackageStartupMessages({
     library(missForest) # random forest
     library(mice) # chained equations
     # optimization
-    library(optimx)
+    library(nloptr)
+    library(optimbase)
+    library(Matrix)
+    library(neldermead)
     # parallel computation
     library(doParallel)
 })

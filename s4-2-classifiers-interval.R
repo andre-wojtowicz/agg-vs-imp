@@ -57,7 +57,7 @@ for (dataset.name in DATASETS.NAMES)
                     .combine       = rbind,
                     .multicombine  = TRUE,
                     .maxcombine    = nrow(dataset.obscured.preprocessed),
-                    .packages      = c("optimx", "data.table", "foreach")) %dopar%
+                    .packages      = c("nloptr", "data.table", "foreach")) %dopar%
             {
                 case.predictors.all = dataset.obscured.preprocessed[
                     i, 1:(ncol(dataset.obscured.preprocessed) - 1), drop = FALSE]

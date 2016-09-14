@@ -64,13 +64,14 @@ CLASSIFIERS.BASELINE = "OneR"
 CLASSIFIERS.LIST     = c("glm",
                          "nnet",
                          "svmLinear",
-                         "C5.0",
+                         "J48",
                          "knn")
 
 CLASSIFIERS.FEATURE.SELECTION.METHOD = list( # NULL means internal method
     glm       = "rfFuncs",
     nnet      = "rfFuncs",
     svmLinear = "rfFuncs",
+    J48       = "rfFuncs",
     knn       = "rfFuncs"
 )
 
@@ -81,9 +82,7 @@ CLASSIFIERS.TUNING.PARAMS = list( # NULL means no tuning parameters
 
     svmLinear = expand.grid(C = 10 ^ seq(-5, 2)),
 
-    C5.0      = expand.grid(trials = c(1, 5, 10, 15, 20),
-                            model  = c("tree", "rules"),
-                            winnow = TRUE),
+    J48       = expand.grid(C = seq(0.1, 0.5, 0.1)),
 
     knn       = expand.grid(k = 1:10)
 )
@@ -167,19 +166,7 @@ IMPUTATION.METHODS = c("median/mode",
 
 # optimization setup when calculating interval predictions
 
-# possible standard numeric optimization methods:
-# * L-BFGS-B
-# * nlminb
-# * spg
-# * bobyqa
-
-OPTIMIZATION.NUMERIC.METHOD         = "nlminb"
 OPTIMIZATION.NUMERIC.REPS           = 10 # standard number of iterations
-
-# classifiers which need to have brute-force numeric optimization
-OPTIMIZATION.NUMERIC.BF.CLASSIFIERS = c("C5.0", "knn", "OneR")
-OPTIMIZATION.NUMERIC.BF.REPS        = 100 # number of iterations for brute-force
-                                          # numeric optimization
 
 # load custom config
 
