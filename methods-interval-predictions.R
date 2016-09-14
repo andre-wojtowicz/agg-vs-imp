@@ -111,7 +111,7 @@ optim.factor.numeric.classic = function(model, case.predictors.all, factors.conf
                     }
 
                     opt.obj = nloptr(
-                        x0          = start.values[idx, ],
+                        x0          = start.values[y, ],
                         eval_f      = target.function,
                         lb          = rep(0, length(features.numeric.nas)),
                         ub          = rep(1, length(features.numeric.nas)),
