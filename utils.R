@@ -171,6 +171,8 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
 
     no.imp.datasets = length(datasets[[1]][[1]]) # treat as multiple imputation
 
+    class.factor.levels = levels(datasets[[1]][[1]][[1]][, ncol(datasets[[1]][[1]][[1]])])
+
     idx.cv = caret::createFolds(y = 1:nrow(datasets[[1]][[1]][[1]]),
                                 k = no.folds)
 
@@ -204,8 +206,11 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
                     names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
 
                 cf.matrix = suppressWarnings(
-                  caret::confusionMatrix(predictions.unified,
-                                         datasets.train[[1]][, ncol(datasets.train[[1]])])
+                  caret::confusionMatrix(
+                      factor(predictions.unified, levels = class.factor.levels),
+                      factor(datasets.train[[1]][, ncol(datasets.train[[1]])],
+                             levels = class.factor.levels)
+                                                )
                 )
                 cf.matrix$overall[[performance.selector]]
             })
@@ -224,8 +229,10 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
             names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
 
         cf.matrix = suppressWarnings(
-            caret::confusionMatrix(predictions.unified,
-                                   datasets.test[[1]][, ncol(datasets.test[[1]])])
+            caret::confusionMatrix(
+                factor(predictions.unified, levels = class.factor.levels),
+                factor(datasets.test[[1]][, ncol(datasets.test[[1]])],
+                       levels = class.factor.levels))
         )
 
         folds.performances = rbind(folds.performances,
@@ -241,8 +248,10 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
                 unname(unlist(idx.test)) %in% which(unname(num.missing.attributes) == j)
 
             cf.matrix = suppressWarnings(
-                caret::confusionMatrix(predictions.unified[nma.selection],
-                                       datasets.test[[1]][nma.selection, ncol(datasets.test[[1]])])
+                caret::confusionMatrix(
+                    factor(predictions.unified[nma.selection], levels = class.factor.levels),
+                    factor(datasets.test[[1]][nma.selection, ncol(datasets.test[[1]])],
+                           levels = class.factor.levels))
             )
 
             folds.performances = rbind(folds.performances,
@@ -272,8 +281,9 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
                 names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
 
             cf.matrix = suppressWarnings(
-                caret::confusionMatrix(predictions.unified,
-                                       datasets.final[[1]][, ncol(datasets.final[[1]])])
+                caret::confusionMatrix(
+                    factor(predictions.unified, levels = class.factor.levels),
+                    factor(datasets.final[[1]][, ncol(datasets.final[[1]])], levels = class.factor.levels))
             )
             cf.matrix$overall[[performance.selector]]
         })
