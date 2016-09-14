@@ -247,6 +247,17 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
             nma.selection =
                 unname(unlist(idx.test)) %in% which(unname(num.missing.attributes) == j)
 
+            if (length(predictions.unified[nma.selection]) == 0)
+            {
+                folds.performances = rbind(folds.performances,
+                   data.frame(Fold = i,
+                              Missing.attributes = j,
+                              Accuracy     = NA,
+                              Sensitivity  = NA,
+                              Specificity  = NA))
+                next
+            }
+
             cf.matrix = suppressWarnings(
                 caret::confusionMatrix(
                     factor(predictions.unified[nma.selection], levels = class.factor.levels),
