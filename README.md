@@ -4,6 +4,8 @@
 
 ### Datasets
 
+See: [UCI Machine Learning datasets for R](https://github.com/andre-wojtowicz/uci-ml-to-r)
+
  * D1 - bank-marketing
  * D2 - census-income
  * D3 - credit-card
@@ -12,21 +14,23 @@
 
 ### Classifiers
 
+See: [caret](https://topepo.github.io/caret)
+
  * K1 - glm
  * K2 - nnet
  * K3 - SVM
- * K4 - C5.0
+ * K4 - J48
  * K5 - kNN
 
 ### Imputation
 
- * I1 - median & mode
- * I2 - random forest
- * I3 - chained equations
+ * I1 - median & mode ([mlr](https://github.com/mlr-org/mlr))
+ * I2 - random forest ([missForest](https://github.com/stekhoven/missForest))
+ * I3 - chained equations ([mice](http://dx.doi.org/10.18637/jss.v045.i03))
 
 ### Agregation operators
 
- * A1 - ...
+ * Ai - all non-NA producing aggregation strategies from the article [Solving the problem of incomplete data in medical diagnosis via interval modeling](http://dx.doi.org/10.1016/j.asoc.2016.05.029)
 
 ## Experiment procedure
 
