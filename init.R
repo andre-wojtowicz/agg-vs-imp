@@ -86,6 +86,8 @@ suppressPackageStartupMessages({
     library(neldermead)
     # parallel computation
     library(doParallel)
+    # plots
+    library(ggplot2)
 })
 
 # load helper functions

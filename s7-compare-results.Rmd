@@ -1,12 +1,14 @@
 ---
 title: "Comparison of results"
-author: "Andrzej Wótjowicz"
+author: "Andrzej Wójtowicz"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
-knitr::read_chunk("s7-compare-results.R")
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = "", 
+                      fig.width = 12, fig.height = 8)
+source("s7-compare-results.R")
+options(digits = 3)
 ```
 
 Document generation date: `r Sys.time()`
@@ -25,6 +27,10 @@ This document presents results to compare imputations with aggregation strategie
 ***
 
 ## Original classifiers
+
+```{r classifiers-original}
+classifiers.original.show.plot()
+```
 
 ## Interval classifiers
 
