@@ -18,6 +18,7 @@ vignettes/*.pdf
 
 .Rproj.user
 .log
+.html
 
 aggregation-ops/
 classifiers/
