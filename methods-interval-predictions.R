@@ -136,10 +136,14 @@ optim.factor.numeric.classic = function(model, case.predictors.all, factors.conf
 }
 
 calculate.optim.interval = function(case.predictors.all, case.class,
-                                    case.predictors.used)
+                                    case.predictors.used, i)
 {
     interval.lower = NULL
     interval.upper = NULL
+
+    setDF(case.predictors.all)
+    setDF(case.class)
+    setDF(case.predictors.used)
 
     if (all(!is.na(case.predictors.used)))
     {

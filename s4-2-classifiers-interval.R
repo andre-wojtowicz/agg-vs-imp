@@ -68,7 +68,7 @@ for (dataset.name in DATASETS.NAMES)
                     , as.character(attr(model, "used.predictors")), drop = FALSE]
 
                 interval = calculate.optim.interval(case.predictors.all, case.class,
-                                         case.predictors.used)
+                                         case.predictors.used, i)
 
                 interval.lower = interval[1]
                 interval.upper = interval[2]
