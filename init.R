@@ -34,7 +34,9 @@ if (CHECKPOINT.QUICK.LOAD) # approx. x10 faster checkpoint library loading
                       "checkpoint")
 }
 
-checkpoint(CHECKPOINT.SNAPSHOT.DATE, verbose = TRUE, scanForPackages = TRUE)
+library(knitr)
+checkpoint(CHECKPOINT.SNAPSHOT.DATE, verbose = TRUE, scanForPackages = TRUE,
+           use.knitr = TRUE)
 
 # load logging system
 

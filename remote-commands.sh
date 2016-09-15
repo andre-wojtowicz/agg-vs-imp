@@ -178,6 +178,7 @@ install_mro()
     try gdebi -n microsoft-r-open/deb/microsoft-r-open-foreachiterators-${MRO_VERSION:0:3}.deb
     try gdebi -n microsoft-r-open/deb/microsoft-r-open-mkl-${MRO_VERSION:0:3}.deb
     try R CMD javareconf
+    try Rscript -e "install.packages('knitr')"
     rm -rf microsoft-r-open*
     
     try apt-get clean

@@ -5,7 +5,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::read_chunk("s7-compare-results.R")
 ```
 
 Document generation date: `r Sys.time()`
@@ -14,10 +15,12 @@ This document presents results to compare imputations with aggregation strategie
 
 ## Table of Contents
 
- 1. [Step 1](#step-1)
- 2. [Step 2](#step-2)
+ 1. [Original classifiers](#original-classifiers)
+ 2. [Interval classifiers](#interval-classifiers)
+ 3. [Imputation methods](#imputation-methods)
+ 4. [Aggregation strategies](#aggregation-strategies)
  
- ...
+...
 
 ***
 
