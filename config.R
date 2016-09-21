@@ -64,14 +64,13 @@ CLASSIFIERS.BASELINE = "OneR"
 CLASSIFIERS.LIST     = c("glm",
                          "nnet",
                          "svmLinear",
-                         "J48",
+                         "rpart",
                          "knn")
 
 CLASSIFIERS.FEATURE.SELECTION.METHOD = list( # NULL means internal method
     glm       = "rfFuncs",
     nnet      = "rfFuncs",
     svmLinear = "rfFuncs",
-    J48       = "rfFuncs",
     knn       = "rfFuncs"
 )
 
@@ -82,7 +81,7 @@ CLASSIFIERS.TUNING.PARAMS = list( # NULL means no tuning parameters
 
     svmLinear = expand.grid(C = 10 ^ seq(-5, 2)),
 
-    J48       = expand.grid(C = seq(0.1, 0.5, 0.1)),
+    rpart     = expand.grid(cp = c(0.001, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9)),
 
     knn       = expand.grid(k = 1:10)
 )
