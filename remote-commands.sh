@@ -14,6 +14,7 @@ SSH_KEY_PRIV="rsa-priv.key"
 SSH_KEY_PUB="rsa-pub.key"
 HOSTS_FILE="remote-hosts.txt"
 CONNECTION_LIST_FILE="remote-connection-list.txt"
+HOSTS_SCANNED_FILE="remote-hosts-scanned.txt"
 DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev libbz2-dev libicu-dev"
 REMOTE_DETECT_LOGICAL_CPUS="FALSE"
 
@@ -52,7 +53,7 @@ step()
 
 try()
 {
-    # skip if previuos command in step ended with succes
+    # skip if previous command in step failed
     [[ -f /tmp/step.$$ ]] && { PREV_STEP=$(< /tmp/step.$$); }
     [[ $PREV_STEP -ne 0 ]] && return 1
 
@@ -79,6 +80,8 @@ try()
         if [[ -n $LOG_STEPS ]]; then
             local FILE=$(readlink -m "${BASH_SOURCE[1]}")
             local LINE=${BASH_LINENO[0]}
+            
+            mkdir -p $( dirname $LOG_STEPS )
 
             echo "$FILE: line $LINE: Command \`$*' failed with exit code $EXIT_CODE." >> "$LOG_STEPS"
         fi
@@ -229,6 +232,33 @@ hosts_push_ssh_key()
     check_if_command_error
 }
 
+hosts_scan_available()
+{
+    HOSTS_SCANNED_ARRAY=()
+    
+    info "Scanning available hosts"
+    for host in "${HOSTS_ARRAY[@]}"; do
+        ssh -o ConnectTimeout=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -q -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "true"
+        EXIT_CODE=$?
+        if [[ $EXIT_CODE -ne 0 ]]; then
+            fail "-- ${host}"
+        else
+            success "-- ${host}"
+            HOSTS_SCANNED_ARRAY+=("$host")
+        fi
+    done
+    
+    HOSTS_ARRAY=("${HOSTS_SCANNED_ARRAY[@]}")
+    
+    info "Available ${#HOSTS_ARRAY[@]} hosts"
+    
+    if [ -f ${HOSTS_SCANNED_FILE} ] ; then rm ${HOSTS_SCANNED_FILE}; fi
+    
+    for host in "${HOSTS_ARRAY[@]}"; do
+        echo ${host} >> ${HOSTS_SCANNED_FILE}
+    done
+}
+
 hosts_push_r_libraries_dump()
 {
     info "Pushing R libraries dump to hosts"
@@ -259,7 +289,6 @@ hosts_push_shell_script()
     for host in "${HOSTS_ARRAY[@]}"; do
         step "-- ${host}"
         try scp ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SHELL_SCRIPT} ${SSH_USER}@${host}:~/
-        try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "touch ${HOSTS_FILE}"
         next
     done
     check_if_command_error
@@ -405,6 +434,7 @@ my_configure_hosts()
 {
     #generate_ssh_keys
     #hosts_push_ssh_key
+    hosts_scan_available
     hosts_push_shell_script
     dump_project_r_files
     hosts_push_project_r_files
@@ -436,11 +466,11 @@ configure_hosts()
 if [ -t 0 ]; then
     if [ ! -f "$HOSTS_FILE" ]
     then
-        fail "Hosts file $HOSTS_FILE does not exists"
-        report_error 74
-        check_if_command_error
+        info "No hosts file, working with localhost"
+        HOSTS_ARRAY+=("127.0.0.1")
+    else
+        readarray -t HOSTS_ARRAY < $HOSTS_FILE
     fi
-    readarray -t HOSTS_ARRAY < $HOSTS_FILE
 else
     while read -r host ; do
         HOSTS_ARRAY+=("$host")

@@ -27,6 +27,8 @@ logs/
 ssh/
 
 remote-hosts.txt
+remote-hosts-all.txt
+remote-hosts-scanned.txt
 remote-connection-list.txt
 
 checkpoint.tar.gz
