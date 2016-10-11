@@ -12,11 +12,13 @@ SSHPASS_PWD="wmi"
 SSH_KEYS_DIR="ssh"
 SSH_KEY_PRIV="rsa-priv.key"
 SSH_KEY_PUB="rsa-pub.key"
+MRO_INSTALL_URL="https://mran.microsoft.com/install"
 HOSTS_FILE="remote-hosts.txt"
 CONNECTION_LIST_FILE="remote-connection-list.txt"
 HOSTS_SCANNED_FILE="remote-hosts-scanned.txt"
 DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev libbz2-dev libicu-dev"
 REMOTE_DETECT_LOGICAL_CPUS="FALSE"
+MIN_HOSTS=100
 
 SHELL_SCRIPT=$(basename $0)
 LOG_STEPS="logs/${SHELL_SCRIPT%.*}".log
@@ -175,7 +177,7 @@ install_mro()
     step "Installing Microsoft R Open"
     echo
     
-    try wget https://mran.microsoft.com/install/mro/${MRO_VERSION}/microsoft-r-open-${MRO_VERSION}.tar.gz
+    try wget ${MRO_INSTALL_URL}/mro/${MRO_VERSION}/microsoft-r-open-${MRO_VERSION}.tar.gz
     try tar -xvf microsoft-r-open-${MRO_VERSION}.tar.gz
     try gdebi -n microsoft-r-open/deb/microsoft-r-open-mro-${MRO_VERSION:0:3}.deb
     try gdebi -n microsoft-r-open/deb/microsoft-r-open-foreachiterators-${MRO_VERSION:0:3}.deb
@@ -238,7 +240,7 @@ hosts_scan_available()
     
     info "Scanning available hosts"
     for host in "${HOSTS_ARRAY[@]}"; do
-        ssh -o ConnectTimeout=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -q -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "true"
+        ssh -o ConnectTimeout=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PreferredAuthentications=publickey -q -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "true"
         EXIT_CODE=$?
         if [[ $EXIT_CODE -ne 0 ]]; then
             fail "-- ${host}"
@@ -250,7 +252,17 @@ hosts_scan_available()
     
     HOSTS_ARRAY=("${HOSTS_SCANNED_ARRAY[@]}")
     
-    info "Available ${#HOSTS_ARRAY[@]} hosts"
+    if [[ ${#HOSTS_ARRAY[@]} -eq 0 ]]; then
+        fail "No available hosts"
+        exit 1
+    else 
+        info "Available ${#HOSTS_ARRAY[@]} hosts"
+    fi
+    
+    if [[ ${#HOSTS_ARRAY[@]} -lt $MIN_HOSTS ]]; then
+        fail "Too few hosts: ${#HOSTS_ARRAY[@]} ; min.: $MIN_HOSTS"
+        exit 1
+    fi
     
     if [ -f ${HOSTS_SCANNED_FILE} ] ; then rm ${HOSTS_SCANNED_FILE}; fi
     
