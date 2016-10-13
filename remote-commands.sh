@@ -177,14 +177,22 @@ install_mro()
     step "Installing Microsoft R Open"
     echo
     
-    try wget ${MRO_INSTALL_URL}/mro/${MRO_VERSION}/microsoft-r-open-${MRO_VERSION}.tar.gz
-    try tar -xvf microsoft-r-open-${MRO_VERSION}.tar.gz
-    try gdebi -n microsoft-r-open/deb/microsoft-r-open-mro-${MRO_VERSION:0:3}.deb
-    try gdebi -n microsoft-r-open/deb/microsoft-r-open-foreachiterators-${MRO_VERSION:0:3}.deb
-    try gdebi -n microsoft-r-open/deb/microsoft-r-open-mkl-${MRO_VERSION:0:3}.deb
-    try R CMD javareconf
+    Rscript -e "invisible(TRUE)" &> /dev/null
+    
+    if [[ $? -ne 0 ]]; then
+        try wget ${MRO_INSTALL_URL}/mro/${MRO_VERSION}/microsoft-r-open-${MRO_VERSION}.tar.gz
+        try tar -xvf microsoft-r-open-${MRO_VERSION}.tar.gz
+        try gdebi -n microsoft-r-open/deb/microsoft-r-open-mro-${MRO_VERSION:0:3}.deb
+        try gdebi -n microsoft-r-open/deb/microsoft-r-open-foreachiterators-${MRO_VERSION:0:3}.deb
+        try gdebi -n microsoft-r-open/deb/microsoft-r-open-mkl-${MRO_VERSION:0:3}.deb
+        try R CMD javareconf
+        rm -rf microsoft-r-open*
+    else
+        echo "Microsoft R Open already installed"
+    fi
+    
     try Rscript -e "install.packages('knitr')"
-    rm -rf microsoft-r-open*
+    
     
     try apt-get clean
     next
