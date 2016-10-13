@@ -39,7 +39,174 @@ imputation.random.forest = function(data, .random.seed)
     list(data.new)
 }
 
-imputation.mice = function(data, .random.seed)
+imputation.mice.classic = function(data, .random.seed)
+{
+    assign(".Random.seed", .random.seed, envir = .GlobalEnv)
+
+    mice.no.imp = 5
+    mice.maxit  = 5
+    mice.data   = droplevels(data)[, -ncol(data)]
+    mice.default.methods = c("pmm",    # numeric
+                             "logreg", # binary, factor with 2 lvls
+                             "cart",   # unordered factor with > 2 lvls
+                             "cart")   # ordered factor with > 2 lvls
+
+    mice.max.attempts = 10
+    par.seeds = matrix(sample.int(10000, mice.no.imp * mice.max.attempts),
+                       nrow = mice.no.imp)
+
+    data.mids =
+        foreach::foreach(no.iter   = 1:mice.no.imp,
+                         .combine  = ibind,
+                         .packages = "mice") %dopar%
+    {
+        attempt = mice.max.attempts
+        mice.mid = NULL
+        while (attempt > 0)
+        {
+            set.seed(par.seeds[no.iter, attempt])
+            mice.seed = par.seeds[no.iter, attempt]
+
+            repeat.mice = FALSE
+            tryCatch({mice.mid <- mice::mice(data          = mice.data,
+                                            m             = 1,
+                                            maxit         = mice.maxit,
+                                            printFlag     = FALSE,
+                                            defaultMethod = mice.default.methods,
+                                            seed          = mice.seed)},
+                     error = function(e){
+                        flog.debug(paste(no.iter, "Mice algorithm failed"))
+                        repeat.mice <<- TRUE
+                     })
+
+            if (repeat.mice)
+            {
+                attempt = attempt - 1
+            } else {
+                break
+            }
+        }
+        mice.mid
+    }
+
+    ##
+
+    data.new = data
+
+    for (j in 1:nrow(data))
+    {
+        if (all(!is.na(data[j, ])))
+        {
+            next
+        }
+
+        missing.attr.names  = colnames(data)[which(is.na(data[j, ]))]
+        complete.attr.names = setdiff(colnames(data), c(missing.attr.names,
+                                                        colnames(data)[ncol(data)]))
+
+        print(j)
+
+        for (missing.attr in missing.attr.names)
+        {
+            if (is.factor(data[[missing.attr]]))
+            {
+                if (nlevels(data[[missing.attr]]) <= 2)
+                {
+                    # binomial
+
+                    mi.lm.fit = suppressWarnings(
+                        with(data = data.mids,
+                             exp = glm(
+                                 as.formula(paste(missing.attr, "~",
+                                                  paste(setdiff(complete.attr.names,
+                                                                missing.attr),
+                                                        collapse = "+"))),
+                                 family = binomial
+                             )))
+
+                    for (i in 1:mice.no.imp)
+                    {
+                        mi.lm.fit$analyses[[i]]$coefficients =
+                            mi.lm.fit$analyses[[i]]$coefficients[
+                                which(!is.na(mi.lm.fit$analyses[[i]]$coefficients))
+                                ]
+                    }
+
+                    mi.lm.pool = pool(mi.lm.fit)
+
+                    imputation.model = suppressWarnings(
+                        glm(formula =
+                                as.formula(paste(missing.attr, "~",
+                                                 paste(setdiff(complete.attr.names,
+                                                               missing.attr),
+                                                       collapse = "+"))),
+                            data = data,
+                            family = binomial)
+                    )
+                    imputation.model$coefficients = mi.lm.pool$qbar
+
+                    pred.p = suppressWarnings(
+                        predict(imputation.model, data[j, ], type = "response")
+                    )
+
+                    data.new[j, missing.attr] = levels(data[[missing.attr]])[
+                        ifelse(pred.p > 0.5, 1, 2)
+                    ]
+
+
+                } else {
+                    # TODO: multinom
+                    next
+                }
+            } else {
+                # gaussian
+
+                mi.lm.fit = suppressWarnings(
+                    with(data = data.mids,
+                         exp = glm(
+                             as.formula(paste(missing.attr, "~",
+                                              paste(setdiff(complete.attr.names, missing.attr),
+                                                    collapse = "+"))),
+                             family = gaussian
+                         )))
+
+                for (i in 1:mice.no.imp)
+                {
+                    mi.lm.fit$analyses[[i]]$coefficients =
+                        mi.lm.fit$analyses[[i]]$coefficients[
+                            which(!is.na(mi.lm.fit$analyses[[i]]$coefficients))
+                            ]
+                }
+
+                mi.lm.pool = pool(mi.lm.fit)
+
+                imputation.model = suppressWarnings(
+                    glm(formula =
+                            as.formula(paste(missing.attr, "~",
+                                             paste(setdiff(complete.attr.names, missing.attr),
+                                                   collapse = "+"))),
+                        data = data,
+                        family = gaussian)
+                )
+                imputation.model$coefficients = mi.lm.pool$qbar
+
+                data.new[j, missing.attr] =
+                    suppressWarnings(
+                        predict(imputation.model, data[j, ])
+                    )
+            }
+
+
+
+        }
+    }
+
+    browser()
+
+    list(data.new)
+}
+
+imputation.mice.vote = function(data, .random.seed)
 {
     assign(".Random.seed", .random.seed, envir = .GlobalEnv)
 

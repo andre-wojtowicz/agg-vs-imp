@@ -18,7 +18,8 @@ imputation.methods =
     sapply(IMPUTATION.METHODS, function(m){
         switch(m, "median/mode"       = imputation.median.mode,
                   "random forest"     = imputation.random.forest,
-                  "chained equations" = imputation.mice)},
+                  "chained equations (classic)" = imputation.mice.classic,
+                  "chained equations (vote)"    = imputation.mice.vote)},
         simplify = FALSE, USE.NAMES = TRUE)
 
 for (dataset.name in DATASETS.NAMES)
