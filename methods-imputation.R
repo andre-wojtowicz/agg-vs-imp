@@ -91,20 +91,19 @@ imputation.mice.classic = function(data, .random.seed)
 
     ##
 
-    data.new = data
-
-    for (j in 1:nrow(data))
+    data.new =
+        foreach::foreach(j         = 1:nrow(data),
+                         .combine  = rbind,
+                         .packages = "nnet") %dopar%
     {
         if (all(!is.na(data[j, ])))
         {
-            next
+            return(data[j, ])
         }
 
         missing.attr.names  = colnames(data)[which(is.na(data[j, ]))]
         complete.attr.names = setdiff(colnames(data), c(missing.attr.names,
                                                         colnames(data)[ncol(data)]))
-
-        print(j)
 
         for (missing.attr in missing.attr.names)
         {
@@ -149,14 +148,36 @@ imputation.mice.classic = function(data, .random.seed)
                         predict(imputation.model, data[j, ], type = "response")
                     )
 
-                    data.new[j, missing.attr] = levels(data[[missing.attr]])[
+                    data[j, missing.attr] = levels(data[[missing.attr]])[
                         ifelse(pred.p > 0.5, 1, 2)
                     ]
 
 
                 } else {
-                    # TODO: multinom
-                    next
+                    # multinom
+
+                    capture.output(
+                        mi.mlm.fit <-
+                            with(data = data.mids,
+                                 exp = multinom(as.formula(paste(missing.attr, "~",
+                                                    paste(setdiff(complete.attr.names,
+                                                     missing.attr),
+                                                    collapse = "+"))))))
+
+                    mi.mlm.pool = pool(mi.mlm.fit)
+
+                    suppressWarnings(capture.output(
+                        imputation.model <-
+                           multinom(as.formula(paste(missing.attr, "~",
+                                                     paste(setdiff(complete.attr.names,
+                                                                   missing.attr),
+                                                           collapse = "+"))),
+                                    data = data)
+                    ))
+                    imputation.model$coefficients = mi.mlm.pool$qbar
+
+                    data[j, missing.attr] =
+                        predict(imputation.model, data[j, ], type = "class")
                 }
             } else {
                 # gaussian
@@ -190,18 +211,15 @@ imputation.mice.classic = function(data, .random.seed)
                 )
                 imputation.model$coefficients = mi.lm.pool$qbar
 
-                data.new[j, missing.attr] =
+                data[j, missing.attr] =
                     suppressWarnings(
                         predict(imputation.model, data[j, ])
                     )
             }
-
-
-
         }
-    }
 
-    browser()
+        return(data[j, ])
+    }
 
     list(data.new)
 }
