@@ -139,7 +139,7 @@ imputation.mice.classic = function(data, .random.seed)
                                                  paste(setdiff(complete.attr.names,
                                                                missing.attr),
                                                        collapse = "+"))),
-                            data = data,
+                            data = complete(data.mids, "long"),
                             family = binomial)
                     )
                     imputation.model$coefficients = mi.lm.pool$qbar
@@ -172,7 +172,7 @@ imputation.mice.classic = function(data, .random.seed)
                                                      paste(setdiff(complete.attr.names,
                                                                    missing.attr),
                                                            collapse = "+"))),
-                                    data = data)
+                                    data = complete(data.mids, "long"))
                     ))
                     imputation.model$coefficients = mi.mlm.pool$qbar
 
@@ -206,7 +206,7 @@ imputation.mice.classic = function(data, .random.seed)
                             as.formula(paste(missing.attr, "~",
                                              paste(setdiff(complete.attr.names, missing.attr),
                                                    collapse = "+"))),
-                        data = data,
+                        data = complete(data.mids, "long"),
                         family = gaussian)
                 )
                 imputation.model$coefficients = mi.lm.pool$qbar
