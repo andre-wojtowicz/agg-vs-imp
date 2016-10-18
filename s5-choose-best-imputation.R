@@ -132,7 +132,7 @@ for (dataset.name in DATASETS.NAMES)
 
             model = readRDS(model.file.path)
 
-            models = merge(models, list(model))
+            models[[length(models) + 1]] = model
 
             preproc.scheme = attr(model, "preproc.scheme")
             dataset.obscured.preprocessed = stats::predict(preproc.scheme,
