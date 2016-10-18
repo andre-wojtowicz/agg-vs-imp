@@ -14,8 +14,8 @@ palette.fill = c("Original classifiers"        = "#0078B8", # color blind friend
                  "Imputation"                  = "#00A574",
                  "Aggregation strategy"        = "#F3E737")
 
-palette.shapes = c("Original classifiers"        = 21,
-                   "Uncertaintified classifiers" = 24,
+palette.shapes = c("Original classifiers"        = NA,
+                   "Uncertaintified classifiers" = NA,
                    "Imputation"                  = 22,
                    "Aggregation strategy"        = 25)
 
@@ -75,45 +75,98 @@ get.barplot = function(data)
 
 }
 
-get.lineplot = function()
+get.lineplot = function(data)
 {
-    # ggplot(ds.lineplot, aes(x = Missing.attributes,
-    #                         y     = value,
-    #                         fill  = Model,
-    #                         color = Model,
-    #                         shape = Model,
-    #                         order = Model)) +
-    #     geom_line(size = 1) +
-    #     geom_point(size = 2, color = "grey30") +
-    #     scale_x_continuous(expand = c(0, 0),
-    #                        limits = c(0, max(ds.lineplot$Missing.attributes)),
-    #                        breaks = 0:max(ds.lineplot$Missing.attributes)) +
-    #     scale_y_continuous(expand = c(0, 0),
-    #                        limits = c(0, 1.05)) +
-    #     theme_classic() +
-    #     geom_hline(yintercept = 0, color = "grey") +
-    #     geom_vline(xintercept = 0, color = "grey") +
-    #     theme(axis.title.x    = element_blank(),
-    #           axis.title.y    = element_blank(),
-    #           axis.text.x     = element_text(color = "grey50"),
-    #           axis.text.y     = element_text(color = "grey50"),
-    #           axis.ticks.x    = element_line(color = "grey50"),
-    #           axis.ticks.y    = element_line(color = "grey50"),
-    #           legend.position = "right",
-    #           legend.title    = element_blank(),
-    #           plot.margin     = unit(c(0.5, 0, 0.5, 0.5), "cm")) +
-    #     scale_shape_manual(values = c(21,24,22,25,23,21))
+    # data: Model | Level | Value.min | Value.max | Value | Measure
+
+    p = ggplot() +
+        geom_hline(yintercept = 1.0, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 0.5, color = "grey90", linetype = 2) +
+        geom_line(data = data %>% filter(!is.na(Value)),
+                  aes(x     = Level,
+                      y     = Value,
+                      shape = Model,
+                      color = Model,
+                      fill  = Model),
+                  size = 1) +
+        geom_point(data = data %>% filter(!is.na(Value)),
+                   aes(x     = Level,
+                       y     = Value,
+                       shape = Model,
+                       color = Model,
+                       fill  = Model),
+                   color = "grey30",
+                   size  = 2) +
+        geom_ribbon(data = data %>% filter(is.na(Value)),
+                    aes(x     = Level,
+                        ymin  = Value.min,
+                        ymax  = Value.max,
+                        shape = Model,
+                        color = Model,
+                        fill  = Model),
+                    alpha = 0.3) +
+        scale_x_continuous(expand = c(0, 0),
+                           limits = c(0, max(data$Level)),
+                           breaks = 0:max(data$Level)) +
+        scale_y_continuous(expand = c(0, 0),
+                           limits = c(0, 1.05)) +
+        theme_classic() +
+        geom_hline(yintercept = 0, color = "grey") +
+        geom_vline(xintercept = 0, color = "grey") +
+        theme(axis.title.x    = element_blank(),
+              axis.title.y    = element_blank(),
+              axis.text.x     = element_text(color = "grey50"),
+              axis.text.y     = element_text(color = "grey50"),
+              axis.ticks.x    = element_line(color = "grey50"),
+              axis.ticks.y    = element_line(color = "grey50"),
+              legend.position = "right",
+              legend.title    = element_blank(),
+              plot.margin     = unit(c(0.5, 0, 0.5, 0.5), "cm")) +
+        scale_shape_manual(values = palette.shapes, breaks = levels(data$Model)) +
+        scale_fill_manual(values = palette.fill, breaks = levels(data$Model)) +
+        scale_color_manual(values = palette.fill, breaks = levels(data$Model))
+
+    return(p)
+
+    # disable clipping:
+    # gt = ggplot_gtable(ggplot_build(p))
+    # gt$layout$clip[gt$layout$name == "panel"] = "off"
+    # print(grid::grid.draw(gt))
 }
 
 # ----------------------
 
-df = data.frame(Model = c("Original classifiers", "Uncertaintified classifiers",
-                          "Imputation", "Aggregation strategy"),
-                Value.min = c(0.44, 0.47, 0.62, 0.79),
-                Value.max = c(0.49, 0.55, NA, NA),
-                Measure   = "Accuracy",
-                stringsAsFactors = FALSE)
-df$Model = with(df, factor(Model, levels = Model))
+# df = data.frame(Model = c("Original classifiers", "Uncertaintified classifiers",
+#                          "Imputation", "Aggregation strategy"),
+#                Value.min = c(0.44, 0.47, 0.62, 0.79),
+#                Value.max = c(0.49, 0.55, NA, NA),
+#                Measure   = "Accuracy",
+#                stringsAsFactors = FALSE)
+# df$Model = with(df, factor(Model, levels = Model))
+#
+# p1 = get.barplot(df)
+# print(p1)
 
-p1 = get.barplot(df)
-print(p1)
+df2 = data.frame(Model = c(rep("Original classifiers", 5),
+                           rep("Uncertaintified classifiers", 5),
+                           rep("Imputation", 5),
+                           rep("Aggregation strategy", 5)),
+                 Level = rep(0:4, 4),
+                 Value.min = c(c(0.43, 0.41, 0.35, 0.31, 0.27),
+                               c(0.49, 0.47, 0.42, 0.37, 0.33),
+                               rep(NA, 5),
+                               rep(NA, 5)),
+                 Value.max = c(c(0.53, 0.49, 0.40, 0.33, 0.30),
+                               c(0.56, 0.51, 0.44, 0.42, 0.39),
+                               rep(NA, 5),
+                               rep(NA, 5)),
+                 Value = c(rep(NA, 5),
+                           rep(NA, 5),
+                           c(0.60, 0.55, 0.53, 0.51, 0.44),
+                           c(0.71, 0.62, 0.54, 0.51, 0.41)),
+                 Measure   = "Accuracy",
+                 stringsAsFactors = FALSE)
+df2$Model = with(df2, factor(Model, levels = unique(Model)))
+
+p2 = get.lineplot(df2)
+print(p2)
