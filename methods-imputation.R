@@ -43,15 +43,15 @@ imputation.mice.classic = function(data, .random.seed)
 {
     assign(".Random.seed", .random.seed, envir = .GlobalEnv)
 
-    mice.no.imp = 5
-    mice.maxit  = 5
+    mice.no.imp = 100
+    mice.maxit  = 10
     mice.data   = droplevels(data)[, -ncol(data)]
     mice.default.methods = c("pmm",    # numeric
                              "logreg", # binary, factor with 2 lvls
                              "cart",   # unordered factor with > 2 lvls
                              "cart")   # ordered factor with > 2 lvls
 
-    mice.max.attempts = 10
+    mice.max.attempts = 25
     par.seeds = matrix(sample.int(10000, mice.no.imp * mice.max.attempts),
                        nrow = mice.no.imp)
 
@@ -228,8 +228,8 @@ imputation.mice.vote = function(data, .random.seed)
 {
     assign(".Random.seed", .random.seed, envir = .GlobalEnv)
 
-    mice.no.imp = 5
-    mice.maxit  = 5
+    mice.no.imp = 75
+    mice.maxit  = 10
     mice.data   = droplevels(data)[, -ncol(data)]
     mice.default.methods = c("pmm",    # numeric
                              "logreg", # binary, factor with 2 lvls
@@ -241,7 +241,7 @@ imputation.mice.vote = function(data, .random.seed)
         stop.script("Number of imputations must be an odd number")
     }
 
-    mice.max.attempts = 10
+    mice.max.attempts = 25
     par.seeds = matrix(sample.int(10000, mice.no.imp * mice.max.attempts),
                        nrow = mice.no.imp)
 
