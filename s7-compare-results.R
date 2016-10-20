@@ -28,7 +28,7 @@ get.barplot = function(data)
 
     data$Model = with(data, factor(Model, levels = rev(levels(Model))))
 
-    ggplot(data,
+    p = ggplot(data,
            aes(x    = Model,
                y    = Value.min,
                fill = Model)) +
@@ -68,16 +68,36 @@ get.barplot = function(data)
                   hjust  = -0.25,
                   size   = 3,
                   colour = "grey45") +
-        geom_text(aes(x = Model,
-                      y = ifelse(is.na(Value.max), 1, Value.min),
-                      label = ifelse(is.na(Value.max), "",
-                                     format(Value.min, digits = 3, nsmall = 3))),
-                  hjust  = 1.25,
-                  size   = 3,
-                  colour = "white") +
         scale_fill_manual(values = palette.fill)
 
+    if (nrow(filter(data, !is.na(Value.max) & Value.min > 0.2)) > 0)
+    {
+        p = p +
+            geom_text(data = data %>% filter(!is.na(Value.max) & Value.min > 0.2),
+                      aes(x = Model,
+                          y = Value.min,
+                          label = format(Value.min, digits = 3, nsmall = 3),
+                          hjust  = 1.25),
+                      colour = "white",
+                      size   = 3)
+    }
 
+    if (nrow(data %>% filter(!is.na(Value.max) & Value.min < 0.2)) > 0)
+    {
+        p = p + geom_text(data = data %>% filter(!is.na(Value.max) & Value.min < 0.2),
+                          aes(x = as.numeric(Model) + 0.225,
+                              y = Value.min,
+                              label = format(Value.min, digits = 3, nsmall = 3),
+                              hjust  = -0.25),
+                          colour = "grey45",
+                          size   = 3)
+    }
+
+
+    # disable clipping:
+    gt = ggplot_gtable(ggplot_build(p))
+    gt$layout$clip[gt$layout$name == "panel"] = "off"
+    gt
 }
 
 get.lineplot = function(data)
@@ -143,16 +163,16 @@ get.lineplot = function(data)
 
 # ----------------------
 
-# df = data.frame(Model = c("Original classifiers", "Uncertaintified classifiers",
-#                          "Imputation", "Aggregation strategy"),
-#                Value.min = c(0.44, 0.47, 0.62, 0.79),
-#                Value.max = c(0.49, 0.55, NA, NA),
-#                Measure   = "Accuracy",
-#                stringsAsFactors = FALSE)
-# df$Model = with(df, factor(Model, levels = Model))
+#df = data.frame(Model = c("Original classifiers", "Uncertaintified classifiers",
+#                         "Imputation", "Aggregation strategy"),
+#               Value.min = c(0.04, 0.47, 0.62, 0.99),
+#               Value.max = c(0.49, 0.55, NA, NA),
+#               Measure   = "Accuracy",
+#               stringsAsFactors = FALSE)
+#df$Model = with(df, factor(Model, levels = Model))
 #
-# p1 = get.barplot(df)
-# print(p1)
+#p1 = get.barplot(df)
+#capture.output(print(grid::grid.draw(p1)))
 
 # ----------------------
 
@@ -381,6 +401,7 @@ for (dataset.name in DATASETS.NAMES)
 
     for (performance.measure in performance.measures)
     {
-
+        #capture.output(print(grid::grid.draw(get.barplot(df.barplot %>% filter(Measure == performance.measure)))))
+        #print(get.lineplot(df.lineplot %>% filter(Measure == performance.measure)))
     }
 }
