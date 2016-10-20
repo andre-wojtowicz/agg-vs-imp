@@ -7,7 +7,8 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S7.FILE),
 
 flog.info("Step 7: compare results")
 
-# ---- classifiers-original ----
+factor.levels = c("Original classifiers", "Uncertaintified classifiers",
+                  "Imputation", "Aggregation strategy")
 
 palette.fill = c("Original classifiers"        = "#0078B8", # color blind friendly palette
                  "Uncertaintified classifiers" = "#F26522",
@@ -19,6 +20,8 @@ palette.shapes = c("Original classifiers"        = NA,
                    "Imputation"                  = 22,
                    "Aggregation strategy"        = 25)
 
+performance.measures = c("Accuracy", "Decisiveness", "Sensitivity", "Specificity")
+
 get.barplot = function(data)
 {
     # data: Model | Value.min | Value.max | Measure
@@ -29,8 +32,10 @@ get.barplot = function(data)
            aes(x    = Model,
                y    = Value.min,
                fill = Model)) +
-        geom_hline(yintercept = 0.5, color = "grey90", linetype = 2) +
-        geom_hline(yintercept = 1.0, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 0.25, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 0.50, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 0.75, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 1.00, color = "grey90", linetype = 2) +
         geom_bar(stat  = "identity",
                  color = "grey60",
                  width = 0.75) +
@@ -38,7 +43,7 @@ get.barplot = function(data)
                            limits = c(0, 1)) +
         theme_classic() +
         geom_hline(yintercept = 0,   color = "grey") +
-        geom_vline(xintercept = 0.4, color = "grey") +
+        geom_vline(xintercept = ifelse(nlevels(data$Model) > 1, 0.4, 0.5), color = "grey") +
         theme(axis.title.x    = element_blank(),
               axis.title.y    = element_blank(),
               axis.text.x     = element_text(color = "grey50"),
@@ -80,8 +85,10 @@ get.lineplot = function(data)
     # data: Model | Level | Value.min | Value.max | Value | Measure
 
     p = ggplot() +
-        geom_hline(yintercept = 1.0, color = "grey90", linetype = 2) +
-        geom_hline(yintercept = 0.5, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 1.00, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 0.75, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 0.50, color = "grey90", linetype = 2) +
+        geom_hline(yintercept = 0.25, color = "grey90", linetype = 2) +
         geom_line(data = data %>% filter(!is.na(Value)),
                   aes(x     = Level,
                       y     = Value,
@@ -123,8 +130,8 @@ get.lineplot = function(data)
               legend.title    = element_blank(),
               plot.margin     = unit(c(0.5, 0, 0.5, 0.5), "cm")) +
         scale_shape_manual(values = palette.shapes, breaks = levels(data$Model)) +
-        scale_fill_manual(values = palette.fill, breaks = levels(data$Model)) +
-        scale_color_manual(values = palette.fill, breaks = levels(data$Model))
+        scale_fill_manual(values  = palette.fill,   breaks = levels(data$Model)) +
+        scale_color_manual(values = palette.fill,   breaks = levels(data$Model))
 
     return(p)
 
@@ -147,26 +154,233 @@ get.lineplot = function(data)
 # p1 = get.barplot(df)
 # print(p1)
 
-df2 = data.frame(Model = c(rep("Original classifiers", 5),
-                           rep("Uncertaintified classifiers", 5),
-                           rep("Imputation", 5),
-                           rep("Aggregation strategy", 5)),
-                 Level = rep(0:4, 4),
-                 Value.min = c(c(0.43, 0.41, 0.35, 0.31, 0.27),
-                               c(0.49, 0.47, 0.42, 0.37, 0.33),
-                               rep(NA, 5),
-                               rep(NA, 5)),
-                 Value.max = c(c(0.53, 0.49, 0.40, 0.33, 0.30),
-                               c(0.56, 0.51, 0.44, 0.42, 0.39),
-                               rep(NA, 5),
-                               rep(NA, 5)),
-                 Value = c(rep(NA, 5),
-                           rep(NA, 5),
-                           c(0.60, 0.55, 0.53, 0.51, 0.44),
-                           c(0.71, 0.62, 0.54, 0.51, 0.41)),
-                 Measure   = "Accuracy",
-                 stringsAsFactors = FALSE)
-df2$Model = with(df2, factor(Model, levels = unique(Model)))
+# ----------------------
 
-p2 = get.lineplot(df2)
-print(p2)
+# df2 = data.frame(Model = c(rep("Original classifiers", 5),
+#                            rep("Uncertaintified classifiers", 5),
+#                            rep("Imputation", 5),
+#                            rep("Aggregation strategy", 5)),
+#                  Level = rep(0:4, 4),
+#                  Value.min = c(c(0.43, 0.41, 0.35, 0.31, 0.27),
+#                                c(0.49, 0.47, 0.42, 0.37, 0.33),
+#                                rep(NA, 5),
+#                                rep(NA, 5)),
+#                  Value.max = c(c(0.53, 0.49, 0.40, 0.33, 0.30),
+#                                c(0.56, 0.51, 0.44, 0.42, 0.39),
+#                                rep(NA, 5),
+#                                rep(NA, 5)),
+#                  Value = c(rep(NA, 5),
+#                            rep(NA, 5),
+#                            c(0.60, 0.55, 0.53, 0.51, 0.44),
+#                            c(0.71, 0.62, 0.54, 0.51, 0.41)),
+#                  Measure   = "Accuracy",
+#                  stringsAsFactors = FALSE)
+# df2$Model = with(df2, factor(Model, levels = unique(Model)))
+#
+# p2 = get.lineplot(df2)
+# print(p2)
+
+for (dataset.name in DATASETS.NAMES)
+{
+    df.barplot =
+        data.frame(Model     = character(0),
+                   Value.min = numeric(0),
+                   Value.max = numeric(0),
+                   Measure   = character(0),
+                   stringsAsFactors = FALSE)
+
+    df.lineplot =
+        data.frame(Model     = character(0),
+                   Level     = integer(0),
+                   Value.min = numeric(0),
+                   Value.max = numeric(0),
+                   Value     = numeric(0),
+                   Measure   = character(0),
+                   stringsAsFactors = FALSE)
+
+
+    # original classifiers
+
+    df.orig.cls =
+        foreach::foreach(model.name = CLASSIFIERS.LIST,
+                         .combine   = rbind) %do%
+    {
+        classifier.performance.original.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.PERFORMANCE.ORIGINAL)
+
+        performance.df = readRDS(classifier.performance.original.file.path)
+
+        performance.df %>% mutate(Classifier = model.name)
+    }
+
+    df.orig.cls.bp.measures = df.orig.cls %>%
+        filter(is.na(Missing.attributes)) %>%
+        select(-Missing.attributes, -Classifier)
+
+    df.barplot = df.barplot %>%
+        rbind(
+            cbind(
+                data.frame(Model = "Original classifiers",
+                           stringsAsFactors = FALSE),
+                join(df.orig.cls.bp.measures %>%
+                         summarise_each(funs(min(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.min = value),
+                     df.orig.cls.bp.measures %>%
+                         summarise_each(funs(max(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.max = value),
+                     by = "Measure"))
+            %>% select(Model, Value.min, Value.max, Measure))
+
+    df.orig.cls.lp.measures = df.orig.cls %>%
+        filter(!is.na(Missing.attributes)) %>%
+        select(-Classifier)
+
+
+    df.orig.cls.lp.measures.processed =
+        foreach::foreach(missing.lvl = 0:max(df.orig.cls.lp.measures$Missing.attributes),
+                         .combine = rbind) %do%
+    {
+        df = df.orig.cls.lp.measures %>%
+            filter(Missing.attributes == missing.lvl) %>%
+            select(-Missing.attributes)
+
+        cbind(
+            data.frame(Model = "Original classifiers",
+                       Level = missing.lvl,
+                       Value = NA,
+                       stringsAsFactors = FALSE),
+            join(df %>%
+                     summarise_each(funs(min(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.min = value),
+                 df %>%
+                     summarise_each(funs(max(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.max = value),
+                 by = "Measure")
+        )
+    } %>% select(Model, Level, Value.min, Value.max, Value, Measure)
+
+    df.lineplot = df.lineplot %>%
+        rbind(df.orig.cls.lp.measures.processed)
+
+    # uncertaintified classifiers
+
+    df.unc.cls =
+        foreach::foreach(model.name = CLASSIFIERS.LIST,
+                         .combine   = rbind) %do%
+    {
+        classifier.performance.original.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.PERFORMANCE.INTERVAL)
+
+        performance.df = readRDS(classifier.performance.original.file.path)
+
+        performance.df %>% mutate(Classifier = model.name)
+    }
+
+    df.unc.cls.bp.measures = df.unc.cls %>%
+        filter(is.na(Missing.attributes)) %>%
+        select(-Missing.attributes, -Classifier)
+
+    df.barplot = df.barplot %>%
+        rbind(
+            cbind(
+                data.frame(Model = "Uncertaintified classifiers",
+                           stringsAsFactors = FALSE),
+                join(df.unc.cls.bp.measures %>%
+                         summarise_each(funs(min(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.min = value),
+                     df.unc.cls.bp.measures %>%
+                         summarise_each(funs(max(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.max = value),
+                     by = "Measure"))
+            %>% select(Model, Value.min, Value.max, Measure))
+
+    df.unc.cls.lp.measures = df.unc.cls %>%
+        filter(!is.na(Missing.attributes)) %>%
+        select(-Classifier)
+
+
+    df.unc.cls.lp.measures.processed =
+        foreach::foreach(missing.lvl = 0:max(df.unc.cls.lp.measures$Missing.attributes),
+                         .combine = rbind) %do%
+    {
+        df = df.unc.cls.lp.measures %>%
+            filter(Missing.attributes == missing.lvl) %>%
+            select(-Missing.attributes)
+
+        cbind(
+            data.frame(Model = "Uncertaintified classifiers",
+                       Level = missing.lvl,
+                       Value = NA,
+                       stringsAsFactors = FALSE),
+            join(df %>%
+                     summarise_each(funs(min(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.min = value),
+                 df %>%
+                     summarise_each(funs(max(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.max = value),
+                 by = "Measure")
+        )
+    } %>% select(Model, Level, Value.min, Value.max, Value, Measure)
+
+    df.lineplot = df.lineplot %>%
+        rbind(df.unc.cls.lp.measures.processed)
+
+    # imputation
+
+    df.imp = readRDS(replace.strings(DATASETS.NAME.PATTERN, dataset.name,
+                                     CLASSIFIERS.IMPUTATION.MODEL))
+
+    df.imp.bp.measures = df.imp$folds.performances %>% filter(is.na(Missing.attributes))
+    df.imp.lp.measures = df.imp$folds.performances %>% filter(!is.na(Missing.attributes))
+
+    df.barplot = df.barplot %>%
+        rbind(df.imp.bp.measures %>%
+                  select(-Fold, -Missing.attributes) %>%
+                  summarise_each(funs(mean)) %>%
+                  melt(id.vars = NULL) %>%
+                  rename(Measure = variable, Value.min = value) %>%
+                  rbind(data.frame(Measure = "Decisiveness", Value.min = 1)) %>%
+                  mutate(Value.max = NA, Model = "Imputation"))
+
+    df.lineplot = df.lineplot %>% rbind(
+        foreach::foreach(missing.lvl = 0:max(df.imp.lp.measures$Missing.attributes),
+                         .combine    = rbind) %do%
+        {
+            df.imp.lp.measures %>% filter(Missing.attributes == missing.lvl) %>%
+                select(-Fold, -Missing.attributes) %>%
+                summarise_each(funs(mean)) %>%
+                melt(id.vars = NULL) %>%
+                rename(Measure = variable, Value = value) %>%
+                rbind(data.frame(Measure = "Decisiveness", Value = 1)) %>%
+                mutate(Value.min = NA, Value.max = NA, Model = "Imputation",
+                       Level = missing.lvl)
+        } %>% select(Model, Level, Value.min, Value.max, Value, Measure))
+
+    # aggregation strategies
+
+    # ---
+
+    df.barplot$Model =
+        with(df.barplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
+    df.lineplot$Model =
+        with(df.lineplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
+
+    #browser()
+
+    for (performance.measure in performance.measures)
+    {
+
+    }
+}
