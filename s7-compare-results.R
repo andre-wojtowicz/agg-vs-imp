@@ -401,7 +401,11 @@ for (dataset.name in DATASETS.NAMES)
 
     for (performance.measure in performance.measures)
     {
-        #capture.output(print(grid::grid.draw(get.barplot(df.barplot %>% filter(Measure == performance.measure)))))
-        #print(get.lineplot(df.lineplot %>% filter(Measure == performance.measure)))
+        grid::grid.newpage();
+        capture.output(
+            print(grid::grid.draw(get.barplot(df.barplot %>%
+                                                  filter(Measure == performance.measure)))))
+
+        print(get.lineplot(df.lineplot %>% filter(Measure == performance.measure)))
     }
 }
