@@ -53,12 +53,12 @@ for (dataset.name in DATASETS.NAMES)
         agg.model = readRDS(agg.model.file.path)
     }
 
-    folds.performances = attr(agg.model, "folds.performances")
+    folds.performances = agg.model$folds.performances
 
     flog.info(paste0("Choosed aggregation: ",
-                           attr(agg.model, "aggregation.code"),
-                     " [", attr(agg.model, "aggregation.group"),
-                     " ",  attr(agg.model, "aggregation.subgroup"), "]"))
+                           agg.model$aggregation.code,
+                     " [", agg.model$aggregation.group,
+                     " ",  agg.model$aggregation.subgroup, "]"))
 
     flog.info("Overall:")
     flog.info(paste0("  Accuracy:    ", round(folds.performances %>%
@@ -68,7 +68,8 @@ for (dataset.name in DATASETS.NAMES)
     flog.info(paste0("  Specificity: ", round(folds.performances %>%
         filter(is.na(Missing.attributes)) %>% select(Specificity) %>% unlist %>% mean, 3)))
 
-    for (num.missing.attr in 0:max(dataset.num.missing.attributes))
+    for (num.missing.attr in 0:max(agg.model$folds.performances$Missing.attributes,
+                                   na.rm = TRUE))
     {
         flog.info(paste("Missing attributes:", num.missing.attr))
         flog.info(paste0("  Accuracy:    ", round(mean(folds.performances %>%
