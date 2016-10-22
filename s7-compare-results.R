@@ -390,6 +390,35 @@ for (dataset.name in DATASETS.NAMES)
 
     # aggregation strategies
 
+    df.agg = readRDS(replace.strings(DATASETS.NAME.PATTERN, dataset.name,
+                                     AGGREGATION.LEARNED))
+
+    df.agg.bp.measures = df.agg$folds.performances %>% filter(is.na(Missing.attributes))
+    df.agg.lp.measures = df.agg$folds.performances %>% filter(!is.na(Missing.attributes))
+
+    df.barplot = df.barplot %>%
+        rbind(df.agg.bp.measures %>%
+                  select(-Fold, -Missing.attributes) %>%
+                  summarise_each(funs(mean)) %>%
+                  melt(id.vars = NULL) %>%
+                  rename(Measure = variable, Value.min = value) %>%
+                  rbind(data.frame(Measure = "Decisiveness", Value.min = 1)) %>%
+                  mutate(Value.max = NA, Model = "Aggregation strategy"))
+
+    df.lineplot = df.lineplot %>% rbind(
+        foreach::foreach(missing.lvl = 0:max(df.agg.lp.measures$Missing.attributes),
+                         .combine    = rbind) %do%
+        {
+            df.agg.lp.measures %>% filter(Missing.attributes == missing.lvl) %>%
+                select(-Fold, -Missing.attributes) %>%
+                summarise_each(funs(mean)) %>%
+                melt(id.vars = NULL) %>%
+                rename(Measure = variable, Value = value) %>%
+                rbind(data.frame(Measure = "Decisiveness", Value = 1)) %>%
+                mutate(Value.min = NA, Value.max = NA, Model = "Aggregation strategy",
+                       Level = missing.lvl)
+        } %>% select(Model, Level, Value.min, Value.max, Value, Measure))
+
     # ---
 
     df.barplot$Model =
@@ -397,11 +426,9 @@ for (dataset.name in DATASETS.NAMES)
     df.lineplot$Model =
         with(df.lineplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
 
-    #browser()
-
     for (performance.measure in performance.measures)
     {
-        grid::grid.newpage();
+        grid::grid.newpage()
         capture.output(
             print(grid::grid.draw(get.barplot(df.barplot %>%
                                                   filter(Measure == performance.measure)))))
