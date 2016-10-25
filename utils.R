@@ -158,16 +158,192 @@ nested.cross.validation = function(dataset, model.name,
     return(model)
 }
 
-cross.validation.for.imputation = function(datasets, models, no.folds,
-                                           performance.selector,
-                                           performance.maximize,
-                                           num.missing.attributes,
-                                           .random.seed = NULL)
+nested.cross.validation.for.imputation = function(dataset.obscured,
+                                                  num.missing.attributes,
+                                                  models,
+                                                  imputation.methods,
+                                                  no.folds,
+                                                  performance.selector,
+                                                  performance.maximize,
+                                                  .random.seed = NULL)
 {
     if (!is.null(.random.seed))
     {
         assign(".Random.seed", .random.seed, envir = .GlobalEnv)
     }
+
+    which.function = ifelse(performance.maximize, which.max, which.min)
+    dataset.class.factor.levels = levels(dataset.obscured[, ncol(dataset.obscured)])
+
+    params.grid    = expand.grid(1:length(models), 1:length(imputation.methods))
+    colnames(params.grid) = c("model", "imputation.method")
+
+
+    flog.info("Phase 1")
+
+    folds.performances = data.frame()
+
+    idx.outer = caret::createFolds(dataset.obscured[, ncol(dataset.obscured)],
+                                   k = no.folds)
+
+    for (i in 1:no.folds)
+    {
+        flog.info(paste("Outer fold", i))
+
+        inner.folds.performance = data.frame()
+
+        folds.inner            = idx.outer[setdiff(1:no.folds, i)]
+        dataset.obscured.inner = dataset.obscured[as.numeric(unlist(folds.inner)), ]
+
+        idx.inner =
+            caret::createFolds(dataset.obscured.inner[, ncol(dataset.obscured.inner)],
+                               k = no.folds)
+
+        for (j in 1:no.folds)
+        {
+            flog.info(paste("Inner fold", j))
+
+            training.folds = idx.inner[setdiff(1:no.folds, j)]
+            testing.fold   = idx.inner[j]
+            dataset.obscured.training =
+                dataset.obscured.inner[as.numeric(unlist(training.folds)), ]
+            dataset.obscured.testing  =
+                dataset.obscured.inner[as.numeric(unlist(testing.fold)), ]
+
+            perfs = apply(params.grid, 1, function(cfg)
+            {
+                model             = models[[cfg["model"]]]
+                imputation.method = imputation.methods[[cfg["imputation.method"]]]
+
+                preproc.scheme = attr(model, "preproc.scheme")
+                dataset.obscured.training.preprocessed =
+                    stats::predict(preproc.scheme, dataset.obscured.training)
+                dataset.obscured.testing.preprocessed =
+                    stats::predict(preproc.scheme, dataset.obscured.testing)
+
+                imputation.scheme =
+                    imputation.method(dataset.obscured.training.preprocessed)
+
+                dataset.imputed.testing =
+                    imputation.scheme(dataset.obscured.testing.preprocessed)
+
+                predictions =
+                    suppressWarnings(stats::predict(model, dataset.imputed.testing))
+
+
+                fold.testing.performance = # TODO: check levels
+                    caret::confusionMatrix(
+                        factor(predictions, levels = dataset.class.factor.levels),
+                        factor(dataset.imputed.testing[, ncol(dataset.imputed.testing)],
+                               levels = dataset.class.factor.levels)
+                    )
+
+                unname(fold.testing.performance$overall[performance.selector])
+
+
+            })
+
+            inner.folds.performance = rbind(inner.folds.performance,
+                data.frame(inner.fold      = j,
+                           params.id       = 1:length(perfs),
+                           performance     = perfs)
+            )
+        }
+
+        summarized.performance = aggregate(performance ~ params.id,
+                                           data = inner.folds.performance, mean)
+
+        selected.params = which.function(summarized.performance$performance)
+
+        model             = models[[params.grid[selected.params, "model"]]]
+        imputation.method = imputation.methods[[params.grid[selected.params,
+                                                            "imputation.method"]]]
+
+        training.folds = idx.outer[setdiff(1:no.folds, i)]
+        testing.fold   = idx.outer[i]
+        dataset.obscured.training =
+            dataset.obscured.inner[as.numeric(unlist(training.folds)), ]
+        dataset.obscured.testing  =
+            dataset.obscured.inner[as.numeric(unlist(testing.fold)), ]
+
+        preproc.scheme = attr(model, "preproc.scheme")
+        dataset.obscured.training.preprocessed =
+            stats::predict(preproc.scheme, dataset.obscured.training)
+        dataset.obscured.testing.preprocessed =
+            stats::predict(preproc.scheme, dataset.obscured.testing)
+
+        imputation.scheme =
+            imputation.method(dataset.obscured.training.preprocessed)
+
+        dataset.imputed.testing =
+            imputation.scheme(dataset.obscured.testing.preprocessed)
+
+        predictions =
+            suppressWarnings(stats::predict(model, dataset.imputed.testing))
+
+        cf.matrix = suppressWarnings(  # TODO: check levels
+            caret::confusionMatrix(
+                factor(predictions, levels = dataset.class.factor.levels),
+                factor(dataset.imputed.testing[, ncol(dataset.imputed.testing)],
+                       levels = dataset.class.factor.levels))
+        )
+
+        folds.performances = rbind(folds.performances,
+            data.frame(Fold = i,
+                       Missing.attributes = NA,
+                       Accuracy     = cf.matrix$overall["Accuracy"],
+                       Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                       Specificity  = cf.matrix$byClass["Specificity"]))
+
+        for (j in 0:max(num.missing.attributes))
+        {
+            nma.selection = # TODO: check selection
+                unname(unlist(testing.fold)) %in% which(unname(num.missing.attributes) == j)
+
+            if (length(predictions[nma.selection]) == 0)
+            {
+                folds.performances = rbind(folds.performances,
+                                           data.frame(Fold = i,
+                                                      Missing.attributes = j,
+                                                      Accuracy     = NA,
+                                                      Sensitivity  = NA,
+                                                      Specificity  = NA))
+                next
+            }
+
+            cf.matrix = suppressWarnings( # TODO: check levels
+                caret::confusionMatrix(
+                    factor(predictions[nma.selection], levels = dataset.class.factor.levels),
+                    factor(dataset.imputed.testing[nma.selection,
+                                                   ncol(dataset.imputed.testing)],
+                           levels = dataset.class.factor.levels))
+            )
+
+            folds.performances = rbind(folds.performances,
+                data.frame(Fold = i,
+                           Missing.attributes = j,
+                           Accuracy     = cf.matrix$overall["Accuracy"],
+                           Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                           Specificity  = cf.matrix$byClass["Specificity"]))
+        }
+    }
+
+    flog.info("Phase 2")
+
+    outer.folds.performance = data.frame()
+
+    for (i in 1:no.folds)
+    {
+        flog.info(paste("Fold", i))
+
+    }
+
+
+
+
+
+
+
 
     no.imp.datasets = length(datasets[[1]][[1]]) # treat as multiple imputation
 
@@ -176,11 +352,9 @@ cross.validation.for.imputation = function(datasets, models, no.folds,
     idx.cv = caret::createFolds(y = 1:nrow(datasets[[1]][[1]][[1]]),
                                 k = no.folds)
 
-    which.function = ifelse(performance.maximize, which.max, which.min)
+
 
     params.grid = expand.grid(1:length(datasets[[1]]), 1:length(models))
-
-    folds.performances = data.frame()
 
     for (i in 1:no.folds)
     {

@@ -39,7 +39,7 @@ imputation.random.forest = function(data, .random.seed)
     list(data.new)
 }
 
-imputation.mice.classic = function(data, .random.seed)
+imputation.mice = function(data, .random.seed)
 {
     assign(".Random.seed", .random.seed, envir = .GlobalEnv)
 
@@ -224,76 +224,6 @@ imputation.mice.classic = function(data, .random.seed)
     list(data.new)
 }
 
-imputation.mice.vote = function(data, .random.seed)
-{
-    assign(".Random.seed", .random.seed, envir = .GlobalEnv)
-
-    mice.no.imp = 75
-    mice.maxit  = 10
-    mice.data   = droplevels(data)[, -ncol(data)]
-    mice.default.methods = c("pmm",    # numeric
-                             "logreg", # binary, factor with 2 lvls
-                             "cart",   # unordered factor with > 2 lvls
-                             "cart")   # ordered factor with > 2 lvls
-
-    if ((mice.no.imp %% 2) == 0)
-    {
-        stop.script("Number of imputations must be an odd number")
-    }
-
-    mice.max.attempts = 25
-    par.seeds = matrix(sample.int(10000, mice.no.imp * mice.max.attempts),
-                       nrow = mice.no.imp)
-
-    data.mids =
-        foreach::foreach(no.iter   = 1:mice.no.imp,
-                         .combine  = ibind,
-                         .packages = "mice") %dopar%
-    {
-        attempt = mice.max.attempts
-        mice.mid = NULL
-        while (attempt > 0)
-        {
-            set.seed(par.seeds[no.iter, attempt])
-            mice.seed = par.seeds[no.iter, attempt]
-
-            repeat.mice = FALSE
-            tryCatch({mice.mid <- mice::mice(data          = mice.data,
-                                            m             = 1,
-                                            maxit         = mice.maxit,
-                                            printFlag     = FALSE,
-                                            defaultMethod = mice.default.methods,
-                                            seed          = mice.seed)},
-                     error = function(e){
-                        flog.debug(paste(no.iter, "Mice algorithm failed"))
-                        repeat.mice <<- TRUE
-                     })
-
-            if (repeat.mice)
-            {
-                attempt = attempt - 1
-            } else {
-                break
-            }
-        }
-        mice.mid
-    }
-
-    data.new = lapply(1:mice.no.imp, function(i){mice::complete(data.mids, i)})
-
-    for (i in 1:mice.no.imp)
-    {
-        for (colname in colnames(data.new))
-        {
-            attr(data.new[[i]][[colname]], "contrasts") = NULL
-        }
-
-        data.new[[i]] = cbind(data.new[[i]], data[ncol(data)])
-    }
-
-    data.new
-}
-
 # ------------------------------------------------------------------------------
 
 # customized version of missForest::missForest() in order to reproduce
@@ -301,7 +231,8 @@ imputation.mice.vote = function(data, .random.seed)
 # note: apparently randomForest::randomForest() is unable to produce the same
 # results in sequential and parallel computing
 missForest.custom = function(xmis, maxiter = 10, ntree = 100, variablewise = FALSE,
-                             decreasing = FALSE, verbose = FALSE, mtry = floor(sqrt(ncol(xmis))),
+                             decreasing = FALSE, verbose = FALSE,
+                             mtry = floor(sqrt(ncol(xmis))),
                              par.seeds = NULL,
                              replace = TRUE, classwt = NULL, cutoff = NULL, strata = NULL,
                              sampsize = NULL, nodesize = NULL, maxnodes = NULL, xtrue = NA,

@@ -10,16 +10,13 @@ flog.info("Step 5: choose best imputation")
 
 source("init-parallel.R")
 
-seeds = get.seeds(SEED, c(length(DATASETS.NAMES),
-                          length(CLASSIFIERS.LIST) + 1,
-                          length(IMPUTATION.METHODS) + 1))
+seeds = get.seeds(SEED, c(length(DATASETS.NAMES), 2))
 
 imputation.methods =
     sapply(IMPUTATION.METHODS, function(m){
         switch(m, "median/mode"       = imputation.median.mode,
                   "random forest"     = imputation.random.forest,
-                  "chained equations (classic)" = imputation.mice.classic,
-                  "chained equations (vote)"    = imputation.mice.vote)},
+                  "chained equations" = imputation.mice)},
         simplify = FALSE, USE.NAMES = TRUE)
 
 for (dataset.name in DATASETS.NAMES)
@@ -48,32 +45,19 @@ for (dataset.name in DATASETS.NAMES)
 
         baseline.model = readRDS(baseline.model.file.path)
 
-        preproc.scheme = attr(baseline.model, "preproc.scheme")
-        dataset.obscured.preprocessed = stats::predict(preproc.scheme,
-                                                       dataset.obscured)
-
-        datasets.imputed = list(lapply(names(imputation.methods), function(imp.name){
-            flog.info(paste("Imputation:", imp.name))
-            seed = extract.seed(seeds,
-                                c(which(dataset.name == DATASETS.NAMES),
-                                  1,
-                                  which(imp.name == IMPUTATION.METHODS)))
-            imputation.methods[[imp.name]](dataset.obscured.preprocessed, seed) }))
-
-        names(datasets.imputed[[1]]) = names(imputation.methods)
-
         seed.cv = extract.seed(seeds,
-                               c(which(dataset.name == DATASETS.NAMES),
-                                 1,
-                                 length(IMPUTATION.METHODS) + 1))
+                               c(which(dataset.name == DATASETS.NAMES), 1))
 
         baseline.imputation.model =
-            cross.validation.for.imputation(datasets.imputed,
-                                            list(baseline.model),
-                                            NCV.FOLDS, NCV.PERFORMANCE.SELECTOR,
-                                            NCV.PERFORMANCE.MAXIMIZE,
-                                            dataset.num.missing.attributes,
-                                            seed.cv)
+            nested.cross.validation.for.imputation(
+                dataset.obscured,
+                dataset.num.missing.attributes,
+                list(baseline.model),
+                imputation.methods,
+                NCV.FOLDS,
+                NCV.PERFORMANCE.SELECTOR,
+                NCV.PERFORMANCE.MAXIMIZE,
+                seed.cv)
 
         saveRDS(baseline.imputation.model, baseline.imputation.model.file.path)
 
@@ -111,15 +95,14 @@ for (dataset.name in DATASETS.NAMES)
 
     flog.info(paste(rep("*", 10), collapse = ""))
 
-    flog.info("Grid search: classifiers and imputation methods")
+    flog.info("Nested cross validation: classifiers and imputation methods")
 
     classifier.imputation.model.file.path =
         replace.strings(DATASETS.NAME.PATTERN, dataset.name, CLASSIFIERS.IMPUTATION.MODEL)
 
     if (!file.exists(classifier.imputation.model.file.path) | OVERWRITE.OUTPUT.FILES)
     {
-        models           = list()
-        datasets.imputed = list()
+        models = list()
 
         for (model.name in CLASSIFIERS.LIST)
         {
@@ -130,39 +113,22 @@ for (dataset.name in DATASETS.NAMES)
                                 c(dataset.name, model.name),
                                 CLASSIFIERS.LEARNED)
 
-            model = readRDS(model.file.path)
-
-            models[[length(models) + 1]] = model
-
-            preproc.scheme = attr(model, "preproc.scheme")
-            dataset.obscured.preprocessed = stats::predict(preproc.scheme,
-                                                           dataset.obscured)
-
-            model.datasets.imputed = lapply(names(imputation.methods), function(imp.name){
-                flog.info(paste("Imputation:", imp.name))
-                seed = extract.seed(seeds,
-                                    c(which(dataset.name == DATASETS.NAMES),
-                                      which(model.name == CLASSIFIERS.LIST) + 1,
-                                      which(imp.name == IMPUTATION.METHODS)))
-                imputation.methods[[imp.name]](dataset.obscured.preprocessed,
-                                               seed) })
-
-            names(model.datasets.imputed) = names(imputation.methods)
-
-            datasets.imputed[[model.name]] = model.datasets.imputed
+            models[[model.name]] = readRDS(model.file.path)
         }
 
         seed.cv = extract.seed(seeds,
-                               c(which(dataset.name == DATASETS.NAMES),
-                                 which(model.name == CLASSIFIERS.LIST) + 1,
-                                 length(IMPUTATION.METHODS) + 1))
+                               c(which(dataset.name == DATASETS.NAMES), 2))
 
         classifier.imputation.model =
-            cross.validation.for.imputation(datasets.imputed, models, NCV.FOLDS,
-                                            NCV.PERFORMANCE.SELECTOR,
-                                            NCV.PERFORMANCE.MAXIMIZE,
-                                            dataset.num.missing.attributes,
-                                            seed.cv)
+            nested.cross.validation.for.imputation(
+                dataset.obscured,
+                dataset.num.missing.attributes,
+                models,
+                imputation.methods,
+                NCV.FOLDS,
+                NCV.PERFORMANCE.SELECTOR,
+                NCV.PERFORMANCE.MAXIMIZE,
+                seed.cv)
 
         saveRDS(classifier.imputation.model, classifier.imputation.model.file.path)
 
@@ -198,7 +164,6 @@ for (dataset.name in DATASETS.NAMES)
             filter(Missing.attributes == num.missing.attr) %>% select(Specificity) %>%
                 unlist, na.rm = TRUE), 3)))
     }
-
 
     flog.info(paste(rep("*", 25), collapse = ""))
 }

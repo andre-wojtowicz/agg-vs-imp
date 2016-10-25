@@ -161,8 +161,7 @@ NCV.PERFORMANCE.MAXIMIZE   = TRUE
 
 IMPUTATION.METHODS = c("median/mode",
                        "random forest",
-                       "chained equations (classic)",
-                       "chained equations (vote)")
+                       "chained equations")
 
 # optimization setup when calculating interval predictions
 
