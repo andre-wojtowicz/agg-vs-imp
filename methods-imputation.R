@@ -1,18 +1,31 @@
 imputation.median.mode = function(data, .random.seed)
 {
-    colnames.ord.factor = names(which(sapply(data, is.ordered)))
+    median.mode.list = sapply(data[, 1:(ncol(data) - 1)], function(x)
+    {
+        if (is.numeric(x) || is.integer(x)) {
+            return(median(x, na.rm = TRUE))
+        } else if (is.ordered(x) || is.factor(x)) {
+            return(get.mode(x))
+        } else {
+            return(NA)
+        }
+    }, simplify = FALSE)
 
-    data.new =
-        mlr::impute(data,
-                    target  = tail(colnames(data), 1),
-                    classes = list(numeric   = mlr::imputeMedian(),
-                                   integer   = mlr::imputeMedian(),
-                                   factor    = mlr::imputeMode()),
-                    cols    = sapply(colnames.ord.factor,
-                                     function(x){ x = mlr::imputeMode() },
-                                     simplify = F))$data
+    imp.scheme = function(data)
+    {
+        data.copy = data
 
-    list(data.new)
+        for (colname in head(colnames(data), ncol(data) - 1)) {
+            data.copy[is.na(data.copy[[colname]]), colname] =
+                median.mode.list[[colname]]
+        }
+
+        data.copy
+    }
+
+    attr(imp.scheme, "imputation.name") = "median/mode"
+
+    return(imp.scheme)
 }
 
 imputation.random.forest = function(data, .random.seed)

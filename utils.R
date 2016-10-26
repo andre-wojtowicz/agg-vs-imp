@@ -336,154 +336,72 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
     {
         flog.info(paste("Fold", i))
 
-    }
+        training.folds = idx.outer[setdiff(1:no.folds, i)]
+        testing.fold   = idx.outer[j]
+        dataset.obscured.training =
+            dataset.obscured[as.numeric(unlist(training.folds)), ]
+        dataset.obscured.testing  =
+            dataset.obscured[as.numeric(unlist(testing.fold)), ]
 
-
-
-
-
-
-
-
-    no.imp.datasets = length(datasets[[1]][[1]]) # treat as multiple imputation
-
-    class.factor.levels = levels(datasets[[1]][[1]][[1]][, ncol(datasets[[1]][[1]][[1]])])
-
-    idx.cv = caret::createFolds(y = 1:nrow(datasets[[1]][[1]][[1]]),
-                                k = no.folds)
-
-
-
-    params.grid = expand.grid(1:length(datasets[[1]]), 1:length(models))
-
-    for (i in 1:no.folds)
-    {
-        flog.info(paste("Fold", i))
-
-        idx.train = idx.cv[setdiff(1:no.folds, i)]
-        idx.test  = idx.cv[i]
-
-        perf.measures =
-            apply(params.grid, 1, function(ids)
-            {
-                datasets.train = sapply(1:no.imp.datasets, function(imp.i) {
-                    datasets[[ids[2]]][[ids[1]]][[imp.i]][unname(unlist(idx.train)), ]},
-                    simplify = F)
-
-                model         = models[[ids[2]]]
-
-                predictions =
-                    suppressWarnings(lapply(datasets.train, function(ds.train)
-                        {stats::predict(model, ds.train)}))
-
-                predictions.unified = sapply(1:nrow(datasets.train[[1]]), function(row.id){
-                    names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
-
-                cf.matrix = suppressWarnings(
-                  caret::confusionMatrix(
-                      factor(predictions.unified, levels = class.factor.levels),
-                      factor(datasets.train[[1]][, ncol(datasets.train[[1]])],
-                             levels = class.factor.levels)
-                                                )
-                )
-                cf.matrix$overall[[performance.selector]]
-            })
-
-        best.id = which.function(perf.measures)
-
-        datasets.test = sapply(1:no.imp.datasets, function(imp.i) {
-            datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]][[imp.i]][unname(unlist(idx.test)), ] },
-            simplify = F)
-        model        = models[[params.grid[best.id, 2]]]
-
-        predictions = suppressWarnings(lapply(datasets.test, function(ds.test){
-            stats::predict(model, ds.test)}))
-
-        predictions.unified = sapply(1:nrow(datasets.test[[1]]), function(row.id){
-            names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
-
-        cf.matrix = suppressWarnings(
-            caret::confusionMatrix(
-                factor(predictions.unified, levels = class.factor.levels),
-                factor(datasets.test[[1]][, ncol(datasets.test[[1]])],
-                       levels = class.factor.levels))
-        )
-
-        folds.performances = rbind(folds.performances,
-            data.frame(Fold = i,
-                       Missing.attributes = NA,
-                       Accuracy     = cf.matrix$overall["Accuracy"],
-                       Sensitivity  = cf.matrix$byClass["Sensitivity"],
-                       Specificity  = cf.matrix$byClass["Specificity"]))
-
-        for (j in 0:max(num.missing.attributes))
+        perfs = apply(params.grid, 1, function(cfg)
         {
-            nma.selection =
-                unname(unlist(idx.test)) %in% which(unname(num.missing.attributes) == j)
+            model             = models[[cfg["model"]]]
+            imputation.method = imputation.methods[[cfg["imputation.method"]]]
 
-            if (length(predictions.unified[nma.selection]) == 0)
-            {
-                folds.performances = rbind(folds.performances,
-                   data.frame(Fold = i,
-                              Missing.attributes = j,
-                              Accuracy     = NA,
-                              Sensitivity  = NA,
-                              Specificity  = NA))
-                next
-            }
+            preproc.scheme = attr(model, "preproc.scheme")
+            dataset.obscured.training.preprocessed =
+                stats::predict(preproc.scheme, dataset.obscured.training)
+            dataset.obscured.testing.preprocessed =
+                stats::predict(preproc.scheme, dataset.obscured.testing)
 
-            cf.matrix = suppressWarnings(
+            imputation.scheme =
+                imputation.method(dataset.obscured.training.preprocessed)
+
+            dataset.imputed.testing =
+                imputation.scheme(dataset.obscured.testing.preprocessed)
+
+            predictions =
+                suppressWarnings(stats::predict(model, dataset.imputed.testing))
+
+
+            fold.testing.performance = # TODO: check levels
                 caret::confusionMatrix(
-                    factor(predictions.unified[nma.selection], levels = class.factor.levels),
-                    factor(datasets.test[[1]][nma.selection, ncol(datasets.test[[1]])],
-                           levels = class.factor.levels))
-            )
+                    factor(predictions, levels = dataset.class.factor.levels),
+                    factor(dataset.imputed.testing[, ncol(dataset.imputed.testing)],
+                           levels = dataset.class.factor.levels)
+                )
 
-            folds.performances = rbind(folds.performances,
-                data.frame(Fold = i,
-                           Missing.attributes = j,
-                           Accuracy     = cf.matrix$overall["Accuracy"],
-                           Sensitivity  = cf.matrix$byClass["Sensitivity"],
-                           Specificity  = cf.matrix$byClass["Specificity"]))
-        }
+            unname(fold.testing.performance$overall[performance.selector])
+        })
+
+        outer.folds.performance = rbind(outer.folds.performance,
+                                        data.frame(outer.fold      = j,
+                                                   params.id       = 1:length(perfs),
+                                                   performance     = perfs)
+        )
     }
 
     flog.info("Choosing final model")
 
-    perf.measures =
-        apply(params.grid, 1, function(ids)
-        {
-            datasets.final = sapply(1:no.imp.datasets, function(imp.i) {
-                datasets[[ids[2]]][[ids[1]]][[imp.i]]},
-                simplify = F)
+    summarized.performance = aggregate(performance ~ params.id,
+                                       data = outer.folds.performance, mean)
 
-            model   = models[[ids[2]]]
+    selected.params = which.function(summarized.performance$performance)
 
-            predictions = suppressWarnings(lapply(datasets.final, function(ds.final){
-                stats::predict(model, ds.final)}))
+    model             = models[[params.grid[selected.params, "model"]]]
+    imputation.method = imputation.methods[[params.grid[selected.params,
+                                                        "imputation.method"]]]
 
-            predictions.unified = sapply(1:nrow(datasets.final[[1]]), function(row.id){
-                names(which.max(table(sapply(predictions, function(x){x[row.id]}))))})
+    preproc.scheme = attr(model, "preproc.scheme")
+    dataset.obscured.preprocessed =
+        stats::predict(preproc.scheme, dataset.obscured)
 
-            cf.matrix = suppressWarnings(
-                caret::confusionMatrix(
-                    factor(predictions.unified, levels = class.factor.levels),
-                    factor(datasets.final[[1]][, ncol(datasets.final[[1]])], levels = class.factor.levels))
-            )
-            cf.matrix$overall[[performance.selector]]
-        })
-
-    best.id = which.function(perf.measures)
-
-    dataset      = datasets[[params.grid[best.id, 2]]][[params.grid[best.id, 1]]]
-    model        = models[[params.grid[best.id, 2]]]
-
-    choosed.imputation.name =
-        names(datasets[[params.grid[best.id, 2]]])[params.grid[best.id, 1]]
+    imputation.scheme =
+        imputation.method(dataset.obscured.preprocessed)
 
     return(list("model"              = model,
-                "imputation.name"    = choosed.imputation.name,
-                "imputation.dataset" = dataset,
+                "imputation.scheme"  = imputation.scheme,
+                "imputation.name"    = attr(imputation.scheme, "imputation.name"),
                 "folds.performances" = folds.performances))
 }
 
@@ -970,4 +888,14 @@ extract.seed = function(seeds, positions)
     }
 
     seeds[[idx]]
+}
+
+get.mode = function(v, na.rm = TRUE)
+{
+    uniqv = unique(v)
+    if (na.rm)
+    {
+        uniqv = uniqv[!is.na(uniqv)]
+    }
+    uniqv[which.max(tabulate(match(v, uniqv)))]
 }

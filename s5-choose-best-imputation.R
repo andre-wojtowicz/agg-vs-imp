@@ -106,14 +106,14 @@ for (dataset.name in DATASETS.NAMES)
 
         for (model.name in CLASSIFIERS.LIST)
         {
-            flog.info(paste("Model:", model.name))
-
             model.file.path =
                 replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
                                 c(dataset.name, model.name),
                                 CLASSIFIERS.LEARNED)
 
             models[[model.name]] = readRDS(model.file.path)
+
+            flog.info(paste("Loaded model:", model.name))
         }
 
         seed.cv = extract.seed(seeds,
