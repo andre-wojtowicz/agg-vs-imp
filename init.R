@@ -77,7 +77,7 @@ suppressPackageStartupMessages({
     library(rpart)
     # imputation
     library(mlr) # median & mode
-    library(missForest) # random forest
+    library(randomForestSRC) # random forest
     library(mice) # chained equations
     # optimization
     library(nloptr)

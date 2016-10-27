@@ -225,13 +225,14 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
                     imputation.method(dataset.obscured.training.preprocessed)
 
                 dataset.imputed.testing =
-                    imputation.scheme(dataset.obscured.testing.preprocessed)
+                    imputation.scheme(dataset.obscured.testing.preprocessed,
+                                      attr(imputation.scheme, "learned.obj"))
 
                 predictions =
                     suppressWarnings(stats::predict(model, dataset.imputed.testing))
 
 
-                fold.testing.performance = # TODO: check levels
+                fold.testing.performance =
                     caret::confusionMatrix(
                         factor(predictions, levels = dataset.class.factor.levels),
                         factor(dataset.imputed.testing[, ncol(dataset.imputed.testing)],
@@ -276,12 +277,13 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
             imputation.method(dataset.obscured.training.preprocessed)
 
         dataset.imputed.testing =
-            imputation.scheme(dataset.obscured.testing.preprocessed)
+            imputation.scheme(dataset.obscured.testing.preprocessed,
+                              attr(imputation.scheme, "learned.obj"))
 
         predictions =
             suppressWarnings(stats::predict(model, dataset.imputed.testing))
 
-        cf.matrix = suppressWarnings(  # TODO: check levels
+        cf.matrix = suppressWarnings(
             caret::confusionMatrix(
                 factor(predictions, levels = dataset.class.factor.levels),
                 factor(dataset.imputed.testing[, ncol(dataset.imputed.testing)],
@@ -297,7 +299,7 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
 
         for (j in 0:max(num.missing.attributes))
         {
-            nma.selection = # TODO: check selection
+            nma.selection =
                 unname(unlist(testing.fold)) %in% which(unname(num.missing.attributes) == j)
 
             if (length(predictions[nma.selection]) == 0)
@@ -311,7 +313,7 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
                 next
             }
 
-            cf.matrix = suppressWarnings( # TODO: check levels
+            cf.matrix = suppressWarnings(
                 caret::confusionMatrix(
                     factor(predictions[nma.selection], levels = dataset.class.factor.levels),
                     factor(dataset.imputed.testing[nma.selection,
@@ -337,7 +339,7 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
         flog.info(paste("Fold", i))
 
         training.folds = idx.outer[setdiff(1:no.folds, i)]
-        testing.fold   = idx.outer[j]
+        testing.fold   = idx.outer[i]
         dataset.obscured.training =
             dataset.obscured[as.numeric(unlist(training.folds)), ]
         dataset.obscured.testing  =
@@ -358,13 +360,14 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
                 imputation.method(dataset.obscured.training.preprocessed)
 
             dataset.imputed.testing =
-                imputation.scheme(dataset.obscured.testing.preprocessed)
+                imputation.scheme(dataset.obscured.testing.preprocessed,
+                                  attr(imputation.scheme, "learned.obj"))
 
             predictions =
                 suppressWarnings(stats::predict(model, dataset.imputed.testing))
 
 
-            fold.testing.performance = # TODO: check levels
+            fold.testing.performance =
                 caret::confusionMatrix(
                     factor(predictions, levels = dataset.class.factor.levels),
                     factor(dataset.imputed.testing[, ncol(dataset.imputed.testing)],
@@ -375,7 +378,7 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
         })
 
         outer.folds.performance = rbind(outer.folds.performance,
-                                        data.frame(outer.fold      = j,
+                                        data.frame(outer.fold      = i,
                                                    params.id       = 1:length(perfs),
                                                    performance     = perfs)
         )
@@ -398,6 +401,9 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
 
     imputation.scheme =
         imputation.method(dataset.obscured.preprocessed)
+
+    # TODO: add seeds for nested CV and imputation methods
+    browser()
 
     return(list("model"              = model,
                 "imputation.scheme"  = imputation.scheme,
