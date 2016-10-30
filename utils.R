@@ -260,8 +260,8 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
         imputation.method = imputation.methods[[params.grid[selected.params,
                                                             "imputation.method"]]]
 
-        training.folds = idx.outer[setdiff(1:no.folds, i)]
-        testing.fold   = idx.outer[i]
+        training.folds = idx.inner[setdiff(1:no.folds, i)]
+        testing.fold   = idx.inner[i]
         dataset.obscured.training =
             dataset.obscured.inner[as.numeric(unlist(training.folds)), ]
         dataset.obscured.testing  =
