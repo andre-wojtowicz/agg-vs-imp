@@ -98,38 +98,107 @@ imputation.mice = function(data)
         mice.mid
     }
 
-    ##
+    imp.scheme = function(data, learned.obj)
+    {
+        mice.no.imp = learned.obj$m
 
-    data.new =
         foreach::foreach(j         = 1:nrow(data),
                          .combine  = rbind,
                          .packages = "nnet") %dopar%
-    {
-        if (all(!is.na(data[j, ])))
         {
-            return(data[j, ])
-        }
-
-        missing.attr.names  = colnames(data)[which(is.na(data[j, ]))]
-        complete.attr.names = setdiff(colnames(data), c(missing.attr.names,
-                                                        colnames(data)[ncol(data)]))
-
-        for (missing.attr in missing.attr.names)
-        {
-            if (is.factor(data[[missing.attr]]))
+            if (all(!is.na(data[j, ])))
             {
-                if (nlevels(data[[missing.attr]]) <= 2)
+                return(data[j, ])
+            }
+
+            missing.attr.names  = colnames(data)[which(is.na(data[j, ]))]
+            complete.attr.names = setdiff(colnames(data), c(missing.attr.names,
+                                                            colnames(data)[ncol(data)]))
+
+            for (missing.attr in missing.attr.names)
+            {
+                if (is.factor(data[[missing.attr]]))
                 {
-                    # binomial
+                    if (nlevels(data[[missing.attr]]) <= 2)
+                    {
+                        # binomial
+
+                        mi.lm.fit = suppressWarnings(
+                            with(data = learned.obj,
+                                 exp = glm(
+                                     as.formula(paste(missing.attr, "~",
+                                                      paste(setdiff(complete.attr.names,
+                                                                    missing.attr),
+                                                            collapse = "+"))),
+                                     family = binomial
+                                 )))
+
+                        for (i in 1:mice.no.imp)
+                        {
+                            mi.lm.fit$analyses[[i]]$coefficients =
+                                mi.lm.fit$analyses[[i]]$coefficients[
+                                    which(!is.na(mi.lm.fit$analyses[[i]]$coefficients))
+                                    ]
+                        }
+
+                        mi.lm.pool = pool(mi.lm.fit)
+
+                        imputation.model = suppressWarnings(
+                            glm(formula =
+                                    as.formula(paste(missing.attr, "~",
+                                                     paste(setdiff(complete.attr.names,
+                                                                   missing.attr),
+                                                           collapse = "+"))),
+                                data = complete(learned.obj, "long"),
+                                family = binomial)
+                        )
+                        imputation.model$coefficients = mi.lm.pool$qbar
+
+                        pred.p = suppressWarnings(
+                            predict(imputation.model, data[j, ], type = "response")
+                        )
+
+                        data[j, missing.attr] = levels(data[[missing.attr]])[
+                            ifelse(pred.p > 0.5, 1, 2)
+                        ]
+
+
+                    } else {
+                        # multinom
+
+                        capture.output(
+                            mi.mlm.fit <-
+                                with(data = learned.obj,
+                                     exp = multinom(as.formula(paste(missing.attr, "~",
+                                                        paste(setdiff(complete.attr.names,
+                                                         missing.attr),
+                                                        collapse = "+"))))))
+
+                        mi.mlm.pool = pool(mi.mlm.fit)
+
+                        suppressWarnings(capture.output(
+                            imputation.model <-
+                               multinom(as.formula(paste(missing.attr, "~",
+                                                         paste(setdiff(complete.attr.names,
+                                                                       missing.attr),
+                                                               collapse = "+"))),
+                                        data = complete(learned.obj, "long"))
+                        ))
+                        imputation.model$coefficients = mi.mlm.pool$qbar
+
+                        data[j, missing.attr] =
+                            predict(imputation.model, data[j, ], type = "class")
+                    }
+                } else {
+                    # gaussian
 
                     mi.lm.fit = suppressWarnings(
-                        with(data = data.mids,
+                        with(data = learned.obj,
                              exp = glm(
                                  as.formula(paste(missing.attr, "~",
-                                                  paste(setdiff(complete.attr.names,
-                                                                missing.attr),
+                                                  paste(setdiff(complete.attr.names, missing.attr),
                                                         collapse = "+"))),
-                                 family = binomial
+                                 family = gaussian
                              )))
 
                     for (i in 1:mice.no.imp)
@@ -145,90 +214,26 @@ imputation.mice = function(data)
                     imputation.model = suppressWarnings(
                         glm(formula =
                                 as.formula(paste(missing.attr, "~",
-                                                 paste(setdiff(complete.attr.names,
-                                                               missing.attr),
+                                                 paste(setdiff(complete.attr.names, missing.attr),
                                                        collapse = "+"))),
-                            data = complete(data.mids, "long"),
-                            family = binomial)
+                            data = complete(learned.obj, "long"),
+                            family = gaussian)
                     )
                     imputation.model$coefficients = mi.lm.pool$qbar
 
-                    pred.p = suppressWarnings(
-                        predict(imputation.model, data[j, ], type = "response")
-                    )
-
-                    data[j, missing.attr] = levels(data[[missing.attr]])[
-                        ifelse(pred.p > 0.5, 1, 2)
-                    ]
-
-
-                } else {
-                    # multinom
-
-                    capture.output(
-                        mi.mlm.fit <-
-                            with(data = data.mids,
-                                 exp = multinom(as.formula(paste(missing.attr, "~",
-                                                    paste(setdiff(complete.attr.names,
-                                                     missing.attr),
-                                                    collapse = "+"))))))
-
-                    mi.mlm.pool = pool(mi.mlm.fit)
-
-                    suppressWarnings(capture.output(
-                        imputation.model <-
-                           multinom(as.formula(paste(missing.attr, "~",
-                                                     paste(setdiff(complete.attr.names,
-                                                                   missing.attr),
-                                                           collapse = "+"))),
-                                    data = complete(data.mids, "long"))
-                    ))
-                    imputation.model$coefficients = mi.mlm.pool$qbar
-
                     data[j, missing.attr] =
-                        predict(imputation.model, data[j, ], type = "class")
+                        suppressWarnings(
+                            predict(imputation.model, data[j, ])
+                        )
                 }
-            } else {
-                # gaussian
-
-                mi.lm.fit = suppressWarnings(
-                    with(data = data.mids,
-                         exp = glm(
-                             as.formula(paste(missing.attr, "~",
-                                              paste(setdiff(complete.attr.names, missing.attr),
-                                                    collapse = "+"))),
-                             family = gaussian
-                         )))
-
-                for (i in 1:mice.no.imp)
-                {
-                    mi.lm.fit$analyses[[i]]$coefficients =
-                        mi.lm.fit$analyses[[i]]$coefficients[
-                            which(!is.na(mi.lm.fit$analyses[[i]]$coefficients))
-                            ]
-                }
-
-                mi.lm.pool = pool(mi.lm.fit)
-
-                imputation.model = suppressWarnings(
-                    glm(formula =
-                            as.formula(paste(missing.attr, "~",
-                                             paste(setdiff(complete.attr.names, missing.attr),
-                                                   collapse = "+"))),
-                        data = complete(data.mids, "long"),
-                        family = gaussian)
-                )
-                imputation.model$coefficients = mi.lm.pool$qbar
-
-                data[j, missing.attr] =
-                    suppressWarnings(
-                        predict(imputation.model, data[j, ])
-                    )
             }
-        }
 
-        return(data[j, ])
+            return(data[j, ])
+        }
     }
 
-    list(data.new)
+    attr(imp.scheme, "imputation.name") = "chained equations"
+    attr(imp.scheme, "learned.obj")     = data.mids
+
+    return(imp.scheme)
 }

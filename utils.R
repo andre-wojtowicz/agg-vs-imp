@@ -402,9 +402,6 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
     imputation.scheme =
         imputation.method(dataset.obscured.preprocessed)
 
-    # TODO: add seeds for nested CV and imputation methods
-    browser()
-
     return(list("model"              = model,
                 "imputation.scheme"  = imputation.scheme,
                 "imputation.name"    = attr(imputation.scheme, "imputation.name"),
