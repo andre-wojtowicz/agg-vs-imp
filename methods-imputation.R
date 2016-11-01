@@ -118,6 +118,18 @@ imputation.mice = function(data)
             complete.attr.names = setdiff(colnames(data), c(missing.attr.names,
                                                             colnames(data)[ncol(data)]))
 
+            # substitute factor level in data row by random sample if the level
+            # was not included in imputation learned.obj; this is extremely rare
+            # to happen
+            for (complete.attr in complete.attr.names)
+            {
+                if (is.factor(data[[complete.attr]]) &&
+                    !(data[j, complete.attr] %in% levels(data.for.lm[[complete.attr]])))
+                {
+                    data[j, complete.attr] = sample(levels(data.for.lm[[complete.attr]]), 1)
+                }
+            }
+
             for (missing.attr in missing.attr.names)
             {
                 if (is.factor(data[[missing.attr]]))
