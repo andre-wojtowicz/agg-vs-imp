@@ -102,6 +102,9 @@ imputation.mice = function(data)
     {
         mice.no.imp = learned.obj$m
 
+        data.for.lm = complete(learned.obj, "long") %>%
+                      select(-.imp, -.id)
+
         foreach::foreach(j         = 1:nrow(data),
                          .combine  = rbind,
                          .packages = "nnet") %dopar%
@@ -149,9 +152,7 @@ imputation.mice = function(data)
                                                      paste(setdiff(complete.attr.names,
                                                                    missing.attr),
                                                            collapse = "+"))),
-                                data = complete(learned.obj, "long") %>%
-                                          select(-.imp, -.id) %>%
-                                          rbind(data[j, -ncol(data)]),
+                                data = rbind(data.for.lm, data[j, -ncol(data)]),
                                 family = binomial)
                         )
                         imputation.model$coefficients = mi.lm.pool$qbar
@@ -184,9 +185,7 @@ imputation.mice = function(data)
                                                          paste(setdiff(complete.attr.names,
                                                                        missing.attr),
                                                                collapse = "+"))),
-                                        data = complete(learned.obj, "long") %>%
-                                                  select(-.imp, -.id) %>%
-                                                  rbind(data[j, -ncol(data)]))
+                                        data = rbind(data.for.lm, data[j, -ncol(data)]))
                         ))
                         imputation.model$coefficients = mi.mlm.pool$qbar
 
@@ -220,9 +219,7 @@ imputation.mice = function(data)
                                 as.formula(paste(missing.attr, "~",
                                                  paste(setdiff(complete.attr.names, missing.attr),
                                                        collapse = "+"))),
-                            data = complete(learned.obj, "long") %>%
-                                      select(-.imp, -.id) %>%
-                                      rbind(data[j, -ncol(data)]),
+                            data = rbind(data.for.lm, data[j, -ncol(data)]),
                             family = gaussian)
                     )
                     imputation.model$coefficients = mi.lm.pool$qbar
