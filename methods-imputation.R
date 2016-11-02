@@ -52,8 +52,8 @@ imputation.random.forest = function(data)
 
 imputation.mice = function(data)
 {
-    mice.no.imp = 100
-    mice.maxit  = 10
+    mice.no.imp = 50
+    mice.maxit  = 5
     mice.data   = droplevels(data)[, -ncol(data)]
     mice.default.methods = c("pmm",    # numeric
                              "logreg", # binary, factor with 2 lvls
