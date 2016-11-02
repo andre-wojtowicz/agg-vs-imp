@@ -102,9 +102,6 @@ imputation.mice = function(data)
     {
         mice.no.imp = learned.obj$m
 
-        data.for.lm = complete(learned.obj, "long") %>%
-                      select(-.imp, -.id)
-
         foreach::foreach(j         = 1:nrow(data),
                          .combine  = rbind,
                          .packages = "nnet") %dopar%
@@ -113,6 +110,9 @@ imputation.mice = function(data)
             {
                 return(data[j, ])
             }
+
+            data.for.lm = complete(learned.obj, "long")
+            data.for.lm = data.for.lm[, !(names(data.for.lm) %in% c(".imp", ".id"))]
 
             missing.attr.names  = colnames(data)[which(is.na(data[j, ]))]
             complete.attr.names = setdiff(colnames(data), c(missing.attr.names,
