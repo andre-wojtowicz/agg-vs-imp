@@ -165,12 +165,15 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
                                                   no.folds,
                                                   performance.selector,
                                                   performance.maximize,
-                                                  .random.seed = NULL)
+                                                  random.seed)
 {
-    if (!is.null(.random.seed))
-    {
-        assign(".Random.seed", .random.seed, envir = .GlobalEnv)
-    }
+    assign(".Random.seed", random.seed, envir = .GlobalEnv)
+
+    start.seed = sample.int(1000, 1)
+
+    seeds.1.outer = get.seeds(start.seed, no.folds)
+    seeds.1.inner = get.seeds(start.seed, c(no.folds, no.folds))
+    seeds.2 = get.seeds(start.seed, no.folds)
 
     which.function = ifelse(performance.maximize, which.max, which.min)
     dataset.class.factor.levels = levels(dataset.obscured[, ncol(dataset.obscured)])
@@ -190,6 +193,8 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
     {
         flog.info(paste("Outer fold", i))
 
+        assign(".Random.seed", extract.seed(seeds.1.outer, i), envir = .GlobalEnv)
+
         inner.folds.performance = data.frame()
 
         folds.inner            = idx.outer[setdiff(1:no.folds, i)]
@@ -202,6 +207,8 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
         for (j in 1:no.folds)
         {
             flog.info(paste("Inner fold", j))
+
+            assign(".Random.seed", extract.seed(seeds.1.inner, c(i, j)), envir = .GlobalEnv)
 
             training.folds = idx.inner[setdiff(1:no.folds, j)]
             testing.fold   = idx.inner[j]
@@ -250,6 +257,8 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
                            performance     = perfs)
             )
         }
+
+        assign(".Random.seed", extract.seed(seeds.1.outer, i), envir = .GlobalEnv)
 
         summarized.performance = aggregate(performance ~ params.id,
                                            data = inner.folds.performance, mean)
@@ -338,6 +347,8 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
     {
         flog.info(paste("Fold", i))
 
+        assign(".Random.seed", extract.seed(seeds.2, i), envir = .GlobalEnv)
+
         training.folds = idx.outer[setdiff(1:no.folds, i)]
         testing.fold   = idx.outer[i]
         dataset.obscured.training =
@@ -385,6 +396,8 @@ nested.cross.validation.for.imputation = function(dataset.obscured,
     }
 
     flog.info("Choosing final model")
+
+    assign(".Random.seed", random.seed, envir = .GlobalEnv)
 
     summarized.performance = aggregate(performance ~ params.id,
                                        data = outer.folds.performance, mean)
