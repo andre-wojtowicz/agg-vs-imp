@@ -1,13 +1,19 @@
 ---
 title: "Comparison of results"
 author: "Andrzej Wójtowicz"
-output: html_document
+output: 
+    html_document:
+        keep_md: yes
 ---
 
 ```{r setup, include=FALSE, cache=FALSE}
 knitr::opts_chunk$set(echo = FALSE, comment = "", 
                       fig.width = 12, fig.height = 8)
 source("config.R")
+source("utils.R")
+library(foreach)
+library(knitr)
+library(plyr)
 options(digits = 3)
 ```
 
@@ -69,15 +75,100 @@ complexity of calculations (see `DATASETS.ALWAYS.AVAILABLE.PREDICTORS` in `confi
 internal method). In all learning procedures I use nested `r NCV.FOLDS`-times cross-validation. The performance measure I choose `r tolower(NCV.PERFORMANCE.SELECTOR)`. 
 I also use:
 
- * classification methods: generalized linear models, neural networks, support
- vector machines with linear kernel, classification trees, k-nearest neighbors algorithm,
+ * classification methods: generalized linear models `glm`, neural networks `nnet`, support
+ vector machines with linear kernel `svmLinear`, classification trees `rpart`, k-nearest neighbors algorithm `knn` and, as a baseline model, one-rule method `OneR`,
  * imputation methods: `r paste(IMPUTATION.METHODS, collapse = ", ")`,
  * aggregation strategies: the strategies that always return prediction (see `aggregation-operators*.R`).
+ 
+The *decisiveness* performance measure is a proportion of cases for which a classifier
+can predict a class.
 
 ## Original classifiers
 
-```{r classifiers-original}
-#classifiers.original.show.plot()
+The following tables present predictors used by the classifiers and performance
+measures. P-value checks through one sample t-test whether mean accuracy from folds
+is significantly greater than 0.5.
+
+```{r classifiers-original, results="asis"}
+for (dataset.name in DATASETS.NAMES)
+{
+    cat(paste("###", dataset.name, "\n\n"))
+    
+    dataset.file.path =
+            replace.strings(DATASETS.NAME.PATTERN,
+                            dataset.name,
+                            DATASETS.ORIGIN)
+    dataset = readRDS(dataset.file.path)
+    
+    used.predictors.row.names =
+        colnames(dataset)[-ncol(dataset)]
+    
+    used.predictors = 
+        foreach::foreach(model.name = c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST)) %do%
+    {
+        model.file.path = 
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.LEARNED)
+        
+        model = suppressWarnings(readRDS(model.file.path))
+        
+        attr(model, "used.predictors")
+    }
+    
+    names(used.predictors) = c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST)
+    
+    up.prnt = 
+        used.predictors.as.table(used.predictors, used.predictors.row.names)
+    
+    cat("Predictors used by classifiers:\n\n")
+    
+    cat(kable(up.prnt, 
+              format = "markdown"), sep = "\n")
+    
+    cat("\n\n")
+    
+    df = foreach::foreach(model.name = c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST),
+            .combine   = rbind) %do%
+    {
+        classifier.performance.original.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.PERFORMANCE.ORIGINAL)
+        
+        performance.df = readRDS(classifier.performance.original.file.path)
+        
+        model.file.path = 
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.LEARNED)
+        
+        model = suppressWarnings(readRDS(model.file.path))
+        
+        pval = t.test(attr(model, "folds.performance")$Accuracy, mu = 0.5, 
+                                         alternative = "greater")$p.val
+        pval = if (pval < 0.001) {
+            "< 0.001 (*)"
+        } else if (pval < 0.05) {
+            paste("< ", round(pval, 3), "(*)")
+        } else {
+            pval
+        }
+        
+        data.frame(Classifier   = model.name,
+                   Accuracy     = performance.df[1, "Accuracy"],
+                   Sensitivity  = performance.df[1, "Sensitivity"],
+                   Specificity  = performance.df[1, "Specificity"],
+                   Decisiveness = performance.df[1, "Decisiveness"],
+                   P.value      = pval)
+    }
+    
+    cat("Performance measures of original classifiers:\n\n")
+    
+    cat(kable(df, format = "markdown"), sep = "\n")
+    
+    cat("\n\n")
+}
 ```
 
 ## Interval classifiers
