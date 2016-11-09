@@ -7,29 +7,77 @@ output: html_document
 ```{r setup, include=FALSE, cache=FALSE}
 knitr::opts_chunk$set(echo = FALSE, comment = "", 
                       fig.width = 12, fig.height = 8)
-source("s7-compare-results.R")
+source("config.R")
 options(digits = 3)
 ```
 
 Document generation date: `r Sys.time()`
 
-This document presents results to compare imputations with aggregation strategies.
+This document presents results comparing two methods of dealing with missing values
+in binary classificaiton problem: imputation with aggregation strategies.
 
 ## Table of Contents
 
- 1. [Original classifiers](#original-classifiers)
- 2. [Interval classifiers](#interval-classifiers)
- 3. [Imputation methods](#imputation-methods)
- 4. [Aggregation strategies](#aggregation-strategies)
- 
-...
+ 1. [Experiment overview](#experiment-overview)
+ 2. [Datasets](#datasets)
+ 3. [Original classifiers](#original-classifiers)
+ 4. [Interval classifiers](#interval-classifiers)
+ 5. [Imputation methods](#imputation-methods)
+ 6. [Aggregation strategies](#aggregation-strategies)
+
 
 ***
+
+## Experiment overview
+
+In the problem of classifiaction of ovarian tumor (benign/malignant) we have to deal
+with missing values. Instead of doing imputation, mostly because of medical reasons,
+one can use former classification models, force them to return interval predictions, 
+and summarize these predictions with use of aggregation operators and thresholding strategies.
+This approach is described in [Solving the problem of incomplete data in medical diagnosis via interval modeling](https://github.com/ovaexpert/ovarian-tumor-aggregation)
+repository. 
+
+In this experiment I check on [UCI Machine Learning datasets](https://github.com/andre-wojtowicz/uci-ml-to-r) how these two approaches
+work on real datasets. I use the following datasets: 
+`r paste(DATASETS.NAMES, collapse = ", ")`. The experiment procedure looks as follows.
+
+For each dataset $D_i$:
+
+ 1. Divide $D_i$ into $D^1$ and $D^2$.
+ 2. Learn classifiers $K_j$ on $D^1$.
+ 3. $D_u :=$ randomly obscured $D^2$.
+ 4. Calculate accuracy, sensitivity, specificity and decisiveness for original 
+ classifiers $K_j$ and interval classifiers $\widetilde{K_j}$ on $D_u$.
+ 5. Choose the best impuation method $\text{Imp}_b$ on $D_u$.
+ 6. Choose the best aggregation operator $\text{Agg}_b$ on $D_u$:
+ 
+  * for each interval classifier $\widetilde{K_j}$ calculate inteval predictions,
+  * choose the best aggregation strategy $\text{Agg}_b$ on interval predictions.
+    
+ 7. Compare original classifiers $K_j$, interval classifiers $\widetilde{K_j}$, 
+ the best imputation method $\text{Imp}_b$ and the best aggregation operator $\text{Agg}_b$.
+ 
+In step 2. the classifiers use **different** $D_1$ datasets with `r DATASETS.SIZE.FEATURE.SELECTION` cases for feature selection and `r DATASETS.SIZE.CLASSIFICATION` cases for classification. The further comparison among
+classification approaches is done on $D_u$ which is **the same** for all approaches and
+consists of `r DATASETS.SIZE.OBSCURATION` cases.
+
+In step 3. `r round(OBSCURATION.NO.NAS.FRACTION * 100, 1)`% of cases are complete.
+The remaining are uniformly obscured.
+ 
+All numerical features are preprocessed to be in range $[0, 1]$. In some datasets a few factor attributes are not obscured, in order to reduce
+complexity of calculations (see `DATASETS.ALWAYS.AVAILABLE.PREDICTORS` in `config.R`). The random forests are used as feature selection method (classifiaction trees have
+internal method). In all learning procedures I use nested `r NCV.FOLDS`-times cross-validation. The performance measure I choose `r tolower(NCV.PERFORMANCE.SELECTOR)`. 
+I also use:
+
+ * classification methods: generalized linear models, neural networks, support
+ vector machines with linear kernel, classification trees, k-nearest neighbors algorithm,
+ * imputation methods: `r paste(IMPUTATION.METHODS, collapse = ", ")`,
+ * aggregation strategies: the strategies that always return prediction (see `aggregation-operators*.R`).
 
 ## Original classifiers
 
 ```{r classifiers-original}
-classifiers.original.show.plot()
+#classifiers.original.show.plot()
 ```
 
 ## Interval classifiers
