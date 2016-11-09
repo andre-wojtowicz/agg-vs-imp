@@ -83,16 +83,18 @@ I also use:
 The *decisiveness* performance measure is a proportion of cases for which a classifier
 can predict a class.
 
-## Original classifiers
+## Results on complete datasets
 
-The following tables present predictors used by the classifiers and performance
-measures. P-value checks through one sample t-test whether mean accuracy from folds
-is significantly greater than 0.5.
 
-```{r classifiers-original, results="asis"}
+
+The following tables present predictors used by the original classifiers and 
+corresponding performance measures. P-values concern one sample t-tests whether 
+mean accuracy across folds is significantly greater than 0.5.
+
+```{r complete-classifiers-original, results="asis"}
 for (dataset.name in DATASETS.NAMES)
 {
-    cat(paste("###", dataset.name, "\n\n"))
+    cat(paste("####", dataset.name, "\n\n"))
     
     dataset.file.path =
             replace.strings(DATASETS.NAME.PATTERN,
@@ -129,15 +131,8 @@ for (dataset.name in DATASETS.NAMES)
     cat("\n\n")
     
     df = foreach::foreach(model.name = c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST),
-            .combine   = rbind) %do%
+                          .combine   = rbind) %do%
     {
-        classifier.performance.original.file.path =
-            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
-                            c(dataset.name, model.name),
-                            CLASSIFIERS.PERFORMANCE.ORIGINAL)
-        
-        performance.df = readRDS(classifier.performance.original.file.path)
-        
         model.file.path = 
             replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
                             c(dataset.name, model.name),
@@ -145,8 +140,9 @@ for (dataset.name in DATASETS.NAMES)
         
         model = suppressWarnings(readRDS(model.file.path))
         
-        pval = t.test(attr(model, "folds.performance")$Accuracy, mu = 0.5, 
-                                         alternative = "greater")$p.val
+        folds.performance = attr(model, "folds.performance")
+        
+        pval = t.test(folds.performance$Accuracy, mu = 0.5, alternative = "greater")$p.val
         pval = if (pval < 0.001) {
             "< 0.001 (*)"
         } else if (pval < 0.05) {
@@ -156,11 +152,45 @@ for (dataset.name in DATASETS.NAMES)
         }
         
         data.frame(Classifier   = model.name,
+                   Accuracy     = mean(folds.performance$Accuracy, na.rm = TRUE),
+                   Sensitivity  = mean(folds.performance$Sensitivity, na.rm = TRUE),
+                   Specificity  = mean(folds.performance$Specificity, na.rm = TRUE),
+                   P.value      = pval)
+    }
+    
+    cat("Performance measures:\n\n")
+    
+    cat(kable(df, format = "markdown"), sep = "\n")
+    
+    cat("\n\n")
+}
+```
+
+## Results on obscured datasets
+
+### Original classifiers
+
+```{r obscured-classifiers-original, results="asis"}
+for (dataset.name in DATASETS.NAMES)
+{
+    cat(paste("####", dataset.name, "\n\n"))
+    
+    
+    df = foreach::foreach(model.name = c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST),
+            .combine   = rbind) %do%
+    {
+        classifier.performance.original.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.PERFORMANCE.ORIGINAL)
+        
+        performance.df = readRDS(classifier.performance.original.file.path)
+        
+        data.frame(Classifier   = model.name,
                    Accuracy     = performance.df[1, "Accuracy"],
                    Sensitivity  = performance.df[1, "Sensitivity"],
                    Specificity  = performance.df[1, "Specificity"],
-                   Decisiveness = performance.df[1, "Decisiveness"],
-                   P.value      = pval)
+                   Decisiveness = performance.df[1, "Decisiveness"])
     }
     
     cat("Performance measures of original classifiers:\n\n")
@@ -171,8 +201,8 @@ for (dataset.name in DATASETS.NAMES)
 }
 ```
 
-## Interval classifiers
+### Interval classifiers
 
-## Imputation methods
+### Imputation methods
 
-## Aggregation strategies
+### Aggregation strategies

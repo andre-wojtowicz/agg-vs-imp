@@ -91,11 +91,12 @@ nested.cross.validation = function(dataset, model.name,
     }
     train.seeds[[no.folds + 1]] = sample.int(1000, 1)
 
-    train.control = caret::trainControl(method        = "cv",
-                                        index         = idx.outer,
-                                        classProbs    = TRUE,
-                                        seeds         = train.seeds,
-                                        allowParallel = TRUE)
+    train.control = caret::trainControl(method          = "cv",
+                                        index           = idx.outer,
+                                        classProbs      = TRUE,
+                                        summaryFunction = caret::multiClassSummary,
+                                        seeds           = train.seeds,
+                                        allowParallel   = TRUE)
 
     training.arguments = merge(
         list(form      = Class ~ .,
@@ -112,7 +113,7 @@ nested.cross.validation = function(dataset, model.name,
 
     if (is.null(model.grid))
     {
-        folds.performance = model$resample[performance.selector]
+        folds.performance = model$resample[, c("Accuracy", "Sensitivity", "Specificity")]
     }
 
     attr(model, "folds.performance") = folds.performance
