@@ -395,8 +395,9 @@ make_remote_connection_list()
             info "'number of cores' per host" 
             for host in "${HOSTS_ARRAY[@]}"; do
                 step "-- ${host}"
-                cornum=`try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} '/usr/bin/Rscript -e "cat(parallel::detectCores(logical = ${REMOTE_DETECT_LOGICAL_CPUS}))"'`
                 
+                [[ $REMOTE_DETECT_LOGICAL_CPUS == "TRUE" ]] && cornum=`ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} 'lscpu | grep "^CPU(s):" | grep -o "[0-9]*"'` || cornum=`ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} 'A=\$(lscpu | grep "Socket(s):" | grep -o "[0-9]*"); B=\$(lscpu | grep "Core(s) per socket:" | grep -o "[0-9]*"); echo \$((A*B))'`
+
                 regex='^[0-9]+$'
                 if ! [[ $cornum =~ $regex ]] ; then
                     try false
@@ -480,6 +481,7 @@ my_configure_hosts()
     #hosts_push_ssh_key
     hosts_scan_available
     hosts_push_shell_script
+    hosts_enable_swap
     dump_project_r_files
     hosts_push_project_r_files
     hosts_install_env
@@ -495,6 +497,7 @@ configure_hosts()
     generate_ssh_keys
     hosts_push_ssh_key
     hosts_push_shell_script
+    hosts_enable_swap
     dump_project_r_files
     hosts_push_project_r_files
     hosts_install_env

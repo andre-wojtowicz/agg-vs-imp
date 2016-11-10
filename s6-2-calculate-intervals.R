@@ -128,6 +128,7 @@ for (dataset.name in DATASETS.NAMES)
                   )
             )
 
+        # hack (1) - send compressed data to nodes
         temp = tempfile()
         on.exit(unlink(temp))
         save(dataset.aggregation.folds.raw.preprocessed, file = temp)
@@ -150,7 +151,7 @@ for (dataset.name in DATASETS.NAMES)
                 .packages      = c("nloptr", "data.table", "foreach")) %dopar%
             {
                 load(rawConnection(dataset.aggregation.folds.raw.preprocessed.data,
-                                   open = 'rb'))
+                                   open = 'rb')) # hack (2)
 
                 job.results = data.table(id    = numeric(0),
                                          lower = numeric(0),
