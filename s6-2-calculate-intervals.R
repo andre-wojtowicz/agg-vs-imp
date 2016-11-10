@@ -128,6 +128,13 @@ for (dataset.name in DATASETS.NAMES)
                   )
             )
 
+        temp = tempfile()
+        on.exit(unlink(temp))
+        save(dataset.aggregation.folds.raw.preprocessed, file = temp)
+        dataset.aggregation.folds.raw.preprocessed.data =
+            readBin(temp, raw(), n = file.info(temp)$size)
+        dataset.aggregation.folds.raw.preprocessed = NULL
+
         for (seq.job.id in 1:length(seq.jobs.partition))
         {
             flog.info(paste("Parallel job:", seq.job.id, "/", length(seq.jobs.partition)))
@@ -142,6 +149,9 @@ for (dataset.name in DATASETS.NAMES)
                 .maxcombine    = length(par.jobs.partition),
                 .packages      = c("nloptr", "data.table", "foreach")) %dopar%
             {
+                load(rawConnection(dataset.aggregation.folds.raw.preprocessed.data,
+                                   open = 'rb'))
+
                 job.results = data.table(id    = numeric(0),
                                          lower = numeric(0),
                                          upper = numeric(0))

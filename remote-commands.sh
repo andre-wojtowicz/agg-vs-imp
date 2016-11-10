@@ -19,6 +19,7 @@ HOSTS_SCANNED_FILE="remote-hosts-scanned.txt"
 DEBIAN_PACKAGES_TO_INSTALL="build-essential gfortran ed htop libxml2-dev ca-certificates curl libcurl4-openssl-dev gdebi-core sshpass default-jre default-jdk libpcre3-dev zlib1g-dev liblzma-dev libbz2-dev libicu-dev"
 REMOTE_DETECT_LOGICAL_CPUS="FALSE"
 MIN_HOSTS=100
+SWAP_PART="/dev/mapper/linux-swap"
 
 SHELL_SCRIPT=$(basename $0)
 LOG_STEPS="logs/${SHELL_SCRIPT%.*}".log
@@ -279,6 +280,17 @@ hosts_scan_available()
     done
 }
 
+hosts_enable_swap()
+{
+    info "Enabling swap on hosts"
+    for host in "${HOSTS_ARRAY[@]}"; do
+        step "-- ${host}"
+        try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "swapon $SWAP_PART"
+        next
+    done
+    check_if_command_error
+}
+
 hosts_push_r_libraries_dump()
 {
     info "Pushing R libraries dump to hosts"
@@ -428,6 +440,18 @@ hosts_check_worker_log()
         step "-- ${host}"
         echo
         try ssh ${SSH_OPTIONS/-q/} -o LogLevel=error -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "for f in worker-remote-*.log; do echo \$f; cat -n \$f; done"
+        next
+    done
+    check_if_command_error
+}
+
+hosts_check_worker_dmesg()
+{
+    info "Checking dmesg on hosts"
+    for host in "${HOSTS_ARRAY[@]}"; do
+        step "-- ${host}"
+        echo
+        try ssh ${SSH_OPTIONS/-q/} -o LogLevel=error -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "dmesg -T | tail -n 20"
         next
     done
     check_if_command_error
