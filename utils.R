@@ -497,6 +497,7 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
 
                     agg.perf = foreach::foreach(
                         no.job   = 1:length(agg.funcs),
+                        .export  = c("check.predictions"),
                         .combine = c) %dopar%
                     {
                         agg.func = agg.funcs[[no.job]]
@@ -589,6 +590,7 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
 
         agg.perf = foreach::foreach(
             no.job   = 1:length(agg.funcs),
+            .export  = c("check.predictions"),
             .combine = c) %dopar%
         {
             agg.func = agg.funcs[[no.job]]
@@ -702,6 +704,7 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
 
                 agg.perf = foreach::foreach(
                     no.job   = 1:length(agg.funcs),
+                    .export  = c("check.predictions"),
                     .combine = c) %dopar%
                 {
                     agg.func = agg.funcs[[no.job]]
@@ -780,6 +783,7 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
 
     agg.perf = foreach::foreach(
         no.job   = 1:length(agg.funcs),
+        .export  = c("check.predictions"),
         .combine = c) %dopar%
     {
         agg.func = agg.funcs[[no.job]]
