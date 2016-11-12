@@ -506,6 +506,10 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                                 agg.func(matrix(row.intervals, nrow = 2))
                             })
 
+                        fold.training.predictions =
+                            check.predictions(fold.training.predictions,
+                                              fold.training.class)
+
                         fold.training.performance =
                             caret::confusionMatrix(
                                 factor(fold.training.predictions, levels = c(0, 1)),
@@ -524,6 +528,10 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                         apply(fold.testing, 1, function(row.intervals){
                             agg.func.selected(matrix(row.intervals, nrow = 2))
                         })
+
+                    fold.testing.predictions =
+                        check.predictions(fold.testing.predictions,
+                                          fold.testing.class)
 
                     fold.testing.performance =
                         caret::confusionMatrix(
@@ -590,6 +598,10 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                     agg.func(matrix(row.intervals, nrow = 2))
                 })
 
+            fold.training.predictions =
+                check.predictions(fold.training.predictions,
+                                  fold.training.class)
+
             fold.training.performance =
                 caret::confusionMatrix(
                     factor(fold.training.predictions, levels = c(0, 1)),
@@ -607,6 +619,10 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
             apply(fold.testing, 1, function(row.intervals){
                 agg.func.selected(matrix(row.intervals, nrow = 2))
             })
+
+        fold.testing.predictions =
+            check.predictions(fold.testing.predictions,
+                              fold.testing.class)
 
         cf.matrix =
             caret::confusionMatrix(
@@ -695,6 +711,10 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                             agg.func(matrix(row.intervals, nrow = 2))
                         })
 
+                    fold.training.predictions =
+                        check.predictions(fold.training.predictions,
+                                          fold.training.class)
+
                     fold.training.performance =
                         caret::confusionMatrix(
                             factor(fold.training.predictions, levels = c(0, 1)),
@@ -713,6 +733,10 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
                     apply(fold.testing, 1, function(row.intervals){
                         agg.func.selected(matrix(row.intervals, nrow = 2))
                     })
+
+                fold.testing.predictions =
+                    check.predictions(fold.testing.predictions,
+                                      fold.testing.class)
 
                 fold.testing.performance =
                     caret::confusionMatrix(
@@ -764,6 +788,10 @@ nested.cross.validation.for.aggregation = function(aggregation.strategies,
             apply(final.dataset, 1, function(row.intervals){
                 agg.func(matrix(row.intervals, nrow = 2))
             })
+
+        final.predictions =
+            check.predictions(final.predictions,
+                              final.dataset.class)
 
         final.performance =
             caret::confusionMatrix(
@@ -915,4 +943,20 @@ get.mode = function(v, na.rm = TRUE)
         uniqv = uniqv[!is.na(uniqv)]
     }
     uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+check.predictions = function(predictions, reference)
+{
+    if (length(predictions) != length(reference))
+    {
+        stop.script("Predictions length differ from reference")
+    }
+
+    if (any(is.na(predictions)))
+    {
+        ids = which(is.na(predictions))
+        predictions[ids] = 1 - reference[ids]
+    }
+
+    return(predictions)
 }
