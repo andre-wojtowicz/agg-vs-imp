@@ -8,6 +8,8 @@ PARALLEL.NO.JOBS.MULTIPLIER        = 2  # no. jobs multiplier per job sequence
                                         # to minimize worker time of waitiing for
                                         # remaining workers in step 6-2
 
+PARALLEL.RENICE                    = 19 # [-20; 19] or NA
+
 # local
 PARALLEL.LOCAL.METHOD              = "PSOCK"
 
