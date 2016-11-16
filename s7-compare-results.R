@@ -2,6 +2,8 @@
 
 source("init.R")
 
+library(grid)
+
 setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S7.FILE),
              LOGGER.OVERWRITE.EXISTING.FILES)
 
@@ -44,7 +46,7 @@ get.barplot = function(data)
         theme_classic() +
         geom_hline(yintercept = 0,   color = "grey") +
         geom_vline(xintercept = ifelse(nlevels(data$Model) > 1, 0.4, 0.5), color = "grey") +
-        theme(axis.title.x    = element_blank(),
+        theme(axis.title.x    = element_text(color = "grey50", size = 10),
               axis.title.y    = element_blank(),
               axis.text.x     = element_text(color = "grey50"),
               axis.text.y     = element_text(color = "black"),
@@ -52,6 +54,7 @@ get.barplot = function(data)
               axis.ticks.y    = element_line(color = "grey50"),
               legend.position = "none",
               plot.margin     = unit(c(0.5, 1.5, 0.5, 0.5), "cm")) +
+        labs(y = "Measure") +
         coord_flip() +
         geom_segment(aes(x = Model, xend = Model,
                          y = Value.min,
@@ -93,7 +96,6 @@ get.barplot = function(data)
                           size   = 3)
     }
 
-
     # disable clipping:
     gt = ggplot_gtable(ggplot_build(p))
     gt$layout$clip[gt$layout$name == "panel"] = "off"
@@ -132,8 +134,8 @@ get.lineplot = function(data, data.loess = NULL)
         theme_classic() +
         geom_hline(yintercept = 0, color = "grey") +
         geom_vline(xintercept = 0, color = "grey") +
-        theme(axis.title.x    = element_blank(),
-              axis.title.y    = element_blank(),
+        theme(axis.title.x    = element_text(color = "grey50", size = 10),
+              axis.title.y    = element_text(color = "grey50", size = 10),
               axis.text.x     = element_text(color = "grey50"),
               axis.text.y     = element_text(color = "grey50"),
               axis.ticks.x    = element_line(color = "grey50"),
@@ -141,6 +143,7 @@ get.lineplot = function(data, data.loess = NULL)
               legend.position = "right",
               legend.title    = element_blank(),
               plot.margin     = unit(c(0.5, 0, 0.5, 0.5), "cm")) +
+        labs(x = "Missing data level", y = "Measure") +
         scale_shape_manual(values = palette.shapes, breaks = levels(data$Model)) +
         scale_fill_manual(values  = palette.fill,   breaks = levels(data$Model)) +
         scale_color_manual(values = palette.fill,   breaks = levels(data$Model))
@@ -494,13 +497,44 @@ for (dataset.name in DATASETS.NAMES)
 
     for (performance.measure in performance.measures)
     {
-        grid::grid.newpage()
-        capture.output(
-            print(grid::grid.draw(get.barplot(df.barplot %>%
-                                                  filter(Measure == performance.measure)))))
+        p1 = get.barplot(df.barplot %>% filter(Measure == performance.measure))
 
-        print(get.lineplot(df.lineplot %>% filter(Measure == performance.measure),
-                           df.lineplot.loess %>%
-                               filter(Measure == performance.measure)))
+        p2 = get.lineplot(df.lineplot %>% filter(Measure == performance.measure),
+                          df.lineplot.loess %>% filter(Measure == performance.measure))
+
+        if (performance.measure != "Specificity")
+        {
+            grid.newpage()
+        }
+
+        if (!(performance.measure %in% c("Sensitivity", "Specificity")))
+        {
+            pushViewport(viewport(layout = grid.layout(2, 2, heights = unit(c(0.7, 5), "null"),
+                                                       widths = unit(c(2, 3), "null"))))
+            grid.text(performance.measure, vp = viewport(layout.pos.row = 1, layout.pos.col = 1:2))
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 1))
+            grid.draw(p1)
+            popViewport()
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 2))
+            grid.draw(ggplot_gtable(ggplot_build(p2)))
+            popViewport()
+        }
+
+        if (performance.measure == "Sensitivity")
+        {
+            pushViewport(viewport(layout = grid.layout(2, 2, heights = unit(c(0.7, 5), "null"),
+                                                       widths = unit(c(2.5, 2.5), "null"))))
+            grid.text("Sensitivity & Specificity",
+                      vp = viewport(layout.pos.row = 1, layout.pos.col = 1:2))
+
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 1))
+            grid.draw(p1)
+            popViewport()
+        } else if (performance.measure == "Specificity")
+        {
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 2))
+            grid.draw(p1)
+            popViewport()
+        }
     }
 }
