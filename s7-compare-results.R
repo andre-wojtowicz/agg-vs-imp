@@ -100,7 +100,7 @@ get.barplot = function(data)
     gt
 }
 
-get.lineplot = function(data)
+get.lineplot = function(data, data.loess = NULL)
 {
     # data: Model | Level | Value.min | Value.max | Value | Measure
 
@@ -124,17 +124,9 @@ get.lineplot = function(data)
                        fill  = Model),
                    color = "grey30",
                    size  = 2) +
-        geom_ribbon(data = data %>% filter(is.na(Value)),
-                    aes(x     = Level,
-                        ymin  = Value.min,
-                        ymax  = Value.max,
-                        shape = Model,
-                        color = Model,
-                        fill  = Model),
-                    alpha = 0.3) +
         scale_x_continuous(expand = c(0, 0),
-                           limits = c(0, max(data$Level)),
-                           breaks = 0:max(data$Level)) +
+                           limits = c(0, 1),
+                           breaks = seq(0, 1, 0.1)) +
         scale_y_continuous(expand = c(0, 0),
                            limits = c(0, 1.05)) +
         theme_classic() +
@@ -152,6 +144,63 @@ get.lineplot = function(data)
         scale_shape_manual(values = palette.shapes, breaks = levels(data$Model)) +
         scale_fill_manual(values  = palette.fill,   breaks = levels(data$Model)) +
         scale_color_manual(values = palette.fill,   breaks = levels(data$Model))
+
+    if (is.null(data.loess))
+    {
+        p = p +
+            geom_ribbon(data = data %>% filter(is.na(Value)),
+                        aes(x     = Level,
+                            ymin  = Value.min,
+                            ymax  = Value.max,
+                            shape = Model,
+                            color = Model,
+                            fill  = Model),
+                        alpha = 0.15)
+    } else {
+        p = p + geom_smooth(data = data.loess,
+                            aes(x     = Level,
+                                y     = Value,
+                                shape = Model,
+                                color = Model,
+                                fill  = Model),
+                            na.rm = TRUE,
+                            alpha = 0.15,
+                            se = FALSE,
+                            method = "loess")
+
+        ribbon.data =
+            foreach::foreach(model.name = c("Original classifiers",
+                                            "Uncertaintified classifiers"),
+                             .combine   = rbind) %do%
+            {
+                loess.p1.data = data.loess %>% filter(Model == model.name)
+
+                suppressWarnings(
+                    loess.p1 <-
+                      with(loess.p1.data,
+                          predict(loess(Value ~ Level), se = TRUE,
+                                  newdata = data.frame(Level = seq(0, max(Level), 0.025)))))
+
+                loess.p1.min = pmin(pmax(loess.p1$fit - qt(0.975, loess.p1$df) * loess.p1$se, 0), 1)
+                loess.p1.max = pmax(pmin(loess.p1$fit + qt(0.975, loess.p1$df) * loess.p1$se, 1), 0)
+
+                data.frame(Level = seq(0, max(loess.p1.data$Level), 0.025),
+                           Value.min = loess.p1.min,
+                           Value.max = loess.p1.max,
+                           Model = model.name)
+            }
+
+        p = p +
+            geom_ribbon(data = ribbon.data,
+                        aes(x     = Level,
+                            ymin  = Value.min,
+                            ymax  = Value.max,
+                            shape = Model,
+                            color = Model,
+                            fill  = Model),
+                        alpha    = 0.15,
+                        linetype = 0)
+    }
 
     return(p)
 
@@ -288,6 +337,12 @@ for (dataset.name in DATASETS.NAMES)
     df.lineplot = df.lineplot %>%
         rbind(df.orig.cls.lp.measures.processed)
 
+    df.lineplot.loess = df.orig.cls.lp.measures %>%
+                        melt(measure.vars = performance.measures) %>%
+                        rename(Measure = variable, Value = value,
+                               Level = Missing.attributes) %>%
+                        mutate(Model = "Original classifiers")
+
     # uncertaintified classifiers
 
     df.unc.cls =
@@ -356,6 +411,14 @@ for (dataset.name in DATASETS.NAMES)
 
     df.lineplot = df.lineplot %>%
         rbind(df.unc.cls.lp.measures.processed)
+
+    df.lineplot.loess =
+        rbind(df.lineplot.loess,
+              df.unc.cls.lp.measures %>%
+              melt(measure.vars = performance.measures) %>%
+              rename(Measure = variable, Value = value,
+                     Level = Missing.attributes) %>%
+              mutate(Model = "Uncertaintified classifiers"))
 
     # imputation
 
@@ -426,6 +489,9 @@ for (dataset.name in DATASETS.NAMES)
     df.lineplot$Model =
         with(df.lineplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
 
+    df.lineplot$Level = with(df.lineplot, Level / (max(Level) + 1))
+    df.lineplot.loess$Level = with(df.lineplot.loess, Level / (max(Level) + 1))
+
     for (performance.measure in performance.measures)
     {
         grid::grid.newpage()
@@ -433,6 +499,8 @@ for (dataset.name in DATASETS.NAMES)
             print(grid::grid.draw(get.barplot(df.barplot %>%
                                                   filter(Measure == performance.measure)))))
 
-        print(get.lineplot(df.lineplot %>% filter(Measure == performance.measure)))
+        print(get.lineplot(df.lineplot %>% filter(Measure == performance.measure),
+                           df.lineplot.loess %>%
+                               filter(Measure == performance.measure)))
     }
 }
