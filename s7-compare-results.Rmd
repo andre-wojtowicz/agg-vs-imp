@@ -1,5 +1,5 @@
 ---
-title: "Comparison of results"
+title: "Results of the experiment"
 author: "Andrzej Wójtowicz"
 output: 
     html_document:
@@ -14,15 +14,16 @@ source("utils.R")
 library(foreach)
 library(knitr)
 library(plyr)
+library(dplyr)
 options(digits = 3)
 ```
 
 Document generation date: `r Sys.time()`
 
-This document presents results comparing two methods of dealing with missing values
-in binary classificaiton problem: imputation with aggregation strategies.
+This document presents results for methods of dealing with missing values
+in binary classificaiton problem: interval classification, imputation and aggregation strategies.
 
-## Table of Contents
+# Table of Contents
 
  1. [Experiment overview](#experiment-overview)
  2. [Datasets](#datasets)
@@ -34,7 +35,7 @@ in binary classificaiton problem: imputation with aggregation strategies.
 
 ***
 
-## Experiment overview
+# Experiment overview
 
 In the problem of classifiaction of ovarian tumor (benign/malignant) we have to deal
 with missing values. Instead of doing imputation, mostly because of medical reasons,
@@ -83,18 +84,18 @@ I also use:
 The *decisiveness* performance measure is a proportion of cases for which a classifier
 can predict a class.
 
-## Results on complete datasets
+# Results
 
-
-
-The following tables present predictors used by the original classifiers and 
-corresponding performance measures. P-values concern one sample t-tests whether 
-mean accuracy across folds is significantly greater than 0.5.
-
-```{r complete-classifiers-original, results="asis"}
+```{r results-tables, results="asis"}
 for (dataset.name in DATASETS.NAMES)
 {
-    cat(paste("####", dataset.name, "\n\n"))
+    cat(paste("##", dataset.name, "\n\n"))
+    
+    cat("### Results on complete dataset\n\n")
+
+    cat("The following tables present predictors used by the original classifiers and 
+corresponding performance measures. P-values concern one sample t-tests whether 
+mean accuracy across folds is significantly greater than 0.5.\n\n")
     
     dataset.file.path =
             replace.strings(DATASETS.NAME.PATTERN,
@@ -144,9 +145,9 @@ for (dataset.name in DATASETS.NAMES)
         
         pval = t.test(folds.performance$Accuracy, mu = 0.5, alternative = "greater")$p.val
         pval = if (pval < 0.001) {
-            "< 0.001 (*)"
+            " < 0.001 (\\*)"
         } else if (pval < 0.05) {
-            paste("< ", round(pval, 3), "(*)")
+            paste0(" ", round(pval, 3), " (\\*)")
         } else {
             pval
         }
@@ -163,20 +164,12 @@ for (dataset.name in DATASETS.NAMES)
     cat(kable(df, format = "markdown"), sep = "\n")
     
     cat("\n\n")
-}
-```
 
-## Results on obscured datasets
-
-### Original classifiers
-
-```{r obscured-classifiers-original, results="asis"}
-for (dataset.name in DATASETS.NAMES)
-{
-    cat(paste("####", dataset.name, "\n\n"))
+    cat("### Results on obscured dataset\n\n")
     
+    # Original classifiers
     
-    df = foreach::foreach(model.name = c(CLASSIFIERS.BASELINE, CLASSIFIERS.LIST),
+    df1 = foreach::foreach(model.name = CLASSIFIERS.LIST,
             .combine   = rbind) %do%
     {
         classifier.performance.original.file.path =
@@ -187,22 +180,81 @@ for (dataset.name in DATASETS.NAMES)
         performance.df = readRDS(classifier.performance.original.file.path)
         
         data.frame(Classifier   = model.name,
+                   Group        = "Original classifier",
                    Accuracy     = performance.df[1, "Accuracy"],
                    Sensitivity  = performance.df[1, "Sensitivity"],
                    Specificity  = performance.df[1, "Specificity"],
                    Decisiveness = performance.df[1, "Decisiveness"])
     }
+
+    # Interval classifiers
+
+    df2 = foreach::foreach(model.name = CLASSIFIERS.LIST,
+            .combine   = rbind) %do%
+    {
+        classifier.performance.interval.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.PERFORMANCE.INTERVAL)
+        
+        performance.df = readRDS(classifier.performance.interval.file.path)
+        
+        data.frame(Classifier   = model.name,
+                   Group        = "Interval classifier",
+                   Accuracy     = performance.df[1, "Accuracy"],
+                   Sensitivity  = performance.df[1, "Sensitivity"],
+                   Specificity  = performance.df[1, "Specificity"],
+                   Decisiveness = performance.df[1, "Decisiveness"])
+    }
+
+    # Imputation
+
+    imputation.model.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, CLASSIFIERS.IMPUTATION.MODEL)
     
-    cat("Performance measures of original classifiers:\n\n")
+    imputation.model = suppressWarnings(readRDS(imputation.model.file.path))
+    folds.performances = imputation.model$folds.performances
     
-    cat(kable(df, format = "markdown"), sep = "\n")
+    df3 = data.frame(Classifier   = paste(imputation.model$model$method, "&",
+                                         imputation.model$imputation.name),
+                     Group        = "Imputation",
+                     Accuracy     = round(folds.performances %>%
+                                          filter(is.na(Missing.attributes)) %>% 
+                                              select(Accuracy) %>% unlist %>% mean, 3),
+                     Sensitivity  = round(folds.performances %>%
+                                          filter(is.na(Missing.attributes)) %>% 
+                                              select(Sensitivity) %>% unlist %>% mean, 3),
+                     Specificity  = round(folds.performances %>%
+                                          filter(is.na(Missing.attributes)) %>% 
+                                              select(Specificity) %>% unlist %>% mean, 3),
+                     Decisiveness = 1.0)
+
+    # Aggregation strategy 
+
+    agg.model.file.path =
+        replace.strings(DATASETS.NAME.PATTERN, dataset.name, AGGREGATION.LEARNED)
+    
+    agg.model = suppressWarnings(readRDS(agg.model.file.path))
+    folds.performances = agg.model$folds.performances
+    
+    df4 = data.frame(Classifier   = paste0("`", agg.model$aggregation.code,
+                                          "` [", agg.model$aggregation.group,
+                                          " ",  agg.model$aggregation.subgroup, "]"),
+                     Group        = "Aggregation",
+                     Accuracy     = round(folds.performances %>%
+                                          filter(is.na(Missing.attributes)) %>% 
+                                              select(Accuracy) %>% unlist %>% mean, 3),
+                     Sensitivity  = round(folds.performances %>%
+                                          filter(is.na(Missing.attributes)) %>% 
+                                              select(Sensitivity) %>% unlist %>% mean, 3),
+                     Specificity  = round(folds.performances %>%
+                                          filter(is.na(Missing.attributes)) %>% 
+                                              select(Specificity) %>% unlist %>% mean, 3),
+                     Decisiveness = 1.0)
+    
+    cat("Performance measures of original classifiers, interval classifiers, imputation and aggregation strategy:\n\n")
+    
+    cat(kable(rbind(df1, df2, df3, df4), format = "markdown"), sep = "\n")
     
     cat("\n\n")
 }
-```
-
-### Interval classifiers
-
-### Imputation methods
-
-### Aggregation strategies
