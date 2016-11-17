@@ -464,6 +464,16 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
                 mutate(Value.min = NA, Value.max = NA, Model = "Imputation",
                        Level = missing.lvl)
         } %>% select(Model, Level, Value.min, Value.max, Value, Measure))
+    
+    df.lineplot.loess =
+        rbind(df.lineplot.loess,
+              df.imp.lp.measures %>%
+                  mutate(Decisiveness = 1.0) %>%
+                  select(-Fold) %>%
+                  melt(measure.vars = performance.measures) %>%
+                  rename(Measure = variable, Value = value,
+                         Level = Missing.attributes) %>%
+                  mutate(Model = "Imputation"))
 
     # data-for-images: aggregation strategies
 
@@ -495,6 +505,16 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
                 mutate(Value.min = NA, Value.max = NA, Model = "Aggregation strategy",
                        Level = missing.lvl)
         } %>% select(Model, Level, Value.min, Value.max, Value, Measure))
+    
+    df.lineplot.loess =
+        rbind(df.lineplot.loess,
+              df.agg.lp.measures %>%
+                  mutate(Decisiveness = 1.0) %>%
+                  select(-Fold) %>%
+                  melt(measure.vars = performance.measures) %>%
+                  rename(Measure = variable, Value = value,
+                         Level = Missing.attributes) %>%
+                  mutate(Model = "Aggregation strategy"))
 
     # ---
 
@@ -502,6 +522,8 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
         with(df.barplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
     df.lineplot$Model =
         with(df.lineplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
+    df.lineplot.loess$Model =
+        with(df.lineplot.loess, factor(Model, levels = intersect(factor.levels, unique(Model))))
 
     df.lineplot$Level = with(df.lineplot, Level / (max(Level) + 1))
     df.lineplot.loess$Level = with(df.lineplot.loess, Level / (max(Level) + 1))
@@ -512,8 +534,7 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
     {
         p1 = get.barplot(df.barplot %>% filter(Measure == performance.measure))
 
-        p2 = get.lineplot(df.lineplot %>% filter(Measure == performance.measure),
-                          df.lineplot.loess %>% filter(Measure == performance.measure))
+        p2 = get.lineplot(df.lineplot.loess %>% filter(Measure == performance.measure))
 
         if (performance.measure != "Specificity")
         {

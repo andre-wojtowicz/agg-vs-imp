@@ -22,6 +22,11 @@ palette.shapes = c("Original classifiers"        = NA,
                    "Imputation"                  = 22,
                    "Aggregation strategy"        = 25)
 
+palette.lwd = c("Original classifiers"        = 1,
+                "Uncertaintified classifiers" = 1,
+                "Imputation"                  = 1.50,
+                "Aggregation strategy"        = 1.25)
+
 performance.measures = c("Accuracy", "Decisiveness", "Sensitivity", "Specificity")
 
 get.barplot = function(data)
@@ -102,30 +107,51 @@ get.barplot = function(data)
     gt
 }
 
-get.lineplot = function(data, data.loess = NULL)
+get.lineplot = function(data)
 {
-    # data: Model | Level | Value.min | Value.max | Value | Measure
+    # data: Level | Measure | Value | Model
+
+    ribbon.data =
+        foreach::foreach(model.name = factor.levels,
+                         .combine   = rbind) %do%
+                         {
+                             loess.p1.data = data %>% filter(Model == model.name)
+
+                             suppressWarnings(
+                                 loess.p1 <-
+                                     with(loess.p1.data,
+                                          predict(loess(Value ~ Level), se = TRUE,
+                                                  newdata = data.frame(Level = seq(0, max(Level), 0.025)))))
+
+                             loess.p1.min = pmin(pmax(loess.p1$fit - qt(0.975, loess.p1$df) * loess.p1$se, 0), 1)
+                             loess.p1.max = pmax(pmin(loess.p1$fit + qt(0.975, loess.p1$df) * loess.p1$se, 1), 0)
+
+                             data.frame(Level = seq(0, max(loess.p1.data$Level), 0.025),
+                                        Value.min = loess.p1.min,
+                                        Value.max = loess.p1.max,
+                                        Model = model.name)
+                         }
 
     p = ggplot() +
         geom_hline(yintercept = 1.00, color = "grey90", linetype = 2) +
         geom_hline(yintercept = 0.75, color = "grey90", linetype = 2) +
         geom_hline(yintercept = 0.50, color = "grey90", linetype = 2) +
         geom_hline(yintercept = 0.25, color = "grey90", linetype = 2) +
-        geom_line(data = data %>% filter(!is.na(Value)),
-                  aes(x     = Level,
-                      y     = Value,
-                      shape = Model,
-                      color = Model,
-                      fill  = Model),
-                  size = 1) +
-        geom_point(data = data %>% filter(!is.na(Value)),
-                   aes(x     = Level,
-                       y     = Value,
-                       shape = Model,
-                       color = Model,
-                       fill  = Model),
-                   color = "grey30",
-                   size  = 2) +
+        geom_smooth(data = data,
+                    aes(x     = Level,
+                        y     = Value,
+                        color = Model,
+                        size  = Model),
+                    na.rm = TRUE,
+                    se = FALSE,
+                    method = "loess") +
+        geom_ribbon(data = ribbon.data,
+                    aes(x     = Level,
+                        ymin  = Value.min,
+                        ymax  = Value.max,
+                        shape = Model,
+                        fill  = Model),
+                    alpha    = 0.075) +
         scale_x_continuous(expand = c(0, 0),
                            limits = c(0, 1),
                            breaks = seq(0, 1, 0.1)) +
@@ -144,66 +170,9 @@ get.lineplot = function(data, data.loess = NULL)
               legend.title    = element_blank(),
               plot.margin     = unit(c(0.5, 0, 0.5, 0.5), "cm")) +
         labs(x = "Missing data level", y = "Measure") +
-        scale_shape_manual(values = palette.shapes, breaks = levels(data$Model)) +
-        scale_fill_manual(values  = palette.fill,   breaks = levels(data$Model)) +
-        scale_color_manual(values = palette.fill,   breaks = levels(data$Model))
-
-    if (is.null(data.loess))
-    {
-        p = p +
-            geom_ribbon(data = data %>% filter(is.na(Value)),
-                        aes(x     = Level,
-                            ymin  = Value.min,
-                            ymax  = Value.max,
-                            shape = Model,
-                            color = Model,
-                            fill  = Model),
-                        alpha = 0.15)
-    } else {
-        p = p + geom_smooth(data = data.loess,
-                            aes(x     = Level,
-                                y     = Value,
-                                shape = Model,
-                                color = Model,
-                                fill  = Model),
-                            na.rm = TRUE,
-                            alpha = 0.15,
-                            se = FALSE,
-                            method = "loess")
-
-        ribbon.data =
-            foreach::foreach(model.name = c("Original classifiers",
-                                            "Uncertaintified classifiers"),
-                             .combine   = rbind) %do%
-            {
-                loess.p1.data = data.loess %>% filter(Model == model.name)
-
-                suppressWarnings(
-                    loess.p1 <-
-                      with(loess.p1.data,
-                          predict(loess(Value ~ Level), se = TRUE,
-                                  newdata = data.frame(Level = seq(0, max(Level), 0.025)))))
-
-                loess.p1.min = pmin(pmax(loess.p1$fit - qt(0.975, loess.p1$df) * loess.p1$se, 0), 1)
-                loess.p1.max = pmax(pmin(loess.p1$fit + qt(0.975, loess.p1$df) * loess.p1$se, 1), 0)
-
-                data.frame(Level = seq(0, max(loess.p1.data$Level), 0.025),
-                           Value.min = loess.p1.min,
-                           Value.max = loess.p1.max,
-                           Model = model.name)
-            }
-
-        p = p +
-            geom_ribbon(data = ribbon.data,
-                        aes(x     = Level,
-                            ymin  = Value.min,
-                            ymax  = Value.max,
-                            shape = Model,
-                            color = Model,
-                            fill  = Model),
-                        alpha    = 0.15,
-                        linetype = 0)
-    }
+        scale_color_manual(values = palette.fill) +
+        scale_fill_manual(values = palette.fill) +
+        scale_size_manual(values = palette.lwd)
 
     return(p)
 
