@@ -34,3 +34,6 @@ remote-connection-list.txt
 checkpoint.tar.gz
 RevoMath.tar.gz
 project-r-files.tar.gz
+
+images/*
+s7-compare-results.md

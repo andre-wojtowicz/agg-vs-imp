@@ -9,12 +9,8 @@ output:
 ```{r setup, include=FALSE, cache=FALSE}
 knitr::opts_chunk$set(echo = FALSE, comment = "", 
                       fig.width = 12, fig.height = 8)
-source("config.R")
-source("utils.R")
-library(foreach)
+source("s7-compare-results.R")
 library(knitr)
-library(plyr)
-library(dplyr)
 options(digits = 3)
 ```
 
@@ -87,7 +83,15 @@ can predict a class.
 
 # Results
 
-```{r results-tables, results="asis"}
+```{r results-tables-and-images, results="asis", warning=FALSE}
+
+IMAGES.DIR = "images"
+
+if (!dir.exists(IMAGES.DIR))
+{
+    dir.create(IMAGES.DIR)
+}
+
 for (dataset.name in DATASETS.NAMES)
 {
     cat(paste("##", dataset.name, "\n\n"))
@@ -256,6 +260,309 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
     cat("Performance measures of original classifiers, interval classifiers, imputation and aggregation strategy:\n\n")
     
     cat(kable(rbind(df1, df2, df3, df4), format = "markdown"), sep = "\n")
+    
+    cat("\n\n")
+    
+    # ------------- images -------------
+    
+    df.barplot =
+        data.frame(Model     = character(0),
+                   Value.min = numeric(0),
+                   Value.max = numeric(0),
+                   Measure   = character(0),
+                   stringsAsFactors = FALSE)
+
+    df.lineplot =
+        data.frame(Model     = character(0),
+                   Level     = integer(0),
+                   Value.min = numeric(0),
+                   Value.max = numeric(0),
+                   Value     = numeric(0),
+                   Measure   = character(0),
+                   stringsAsFactors = FALSE)
+
+
+    # data-for-images: original classifiers
+
+    df.orig.cls =
+        foreach::foreach(model.name = CLASSIFIERS.LIST,
+                         .combine   = rbind) %do%
+    {
+        classifier.performance.original.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.PERFORMANCE.ORIGINAL)
+
+        performance.df = readRDS(classifier.performance.original.file.path)
+
+        performance.df %>% mutate(Classifier = model.name)
+    }
+
+    df.orig.cls.bp.measures = df.orig.cls %>%
+        filter(is.na(Missing.attributes)) %>%
+        select(-Missing.attributes, -Classifier)
+
+    df.barplot = df.barplot %>%
+        rbind(
+            cbind(
+                data.frame(Model = "Original classifiers",
+                           stringsAsFactors = FALSE),
+                join(df.orig.cls.bp.measures %>%
+                         summarise_each(funs(min(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.min = value),
+                     df.orig.cls.bp.measures %>%
+                         summarise_each(funs(max(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.max = value),
+                     by = "Measure"))
+            %>% select(Model, Value.min, Value.max, Measure))
+
+    df.orig.cls.lp.measures = df.orig.cls %>%
+        filter(!is.na(Missing.attributes)) %>%
+        select(-Classifier)
+
+
+    df.orig.cls.lp.measures.processed =
+        foreach::foreach(missing.lvl = 0:max(df.orig.cls.lp.measures$Missing.attributes),
+                         .combine = rbind) %do%
+    {
+        df = df.orig.cls.lp.measures %>%
+            filter(Missing.attributes == missing.lvl) %>%
+            select(-Missing.attributes)
+
+        cbind(
+            data.frame(Model = "Original classifiers",
+                       Level = missing.lvl,
+                       Value = NA,
+                       stringsAsFactors = FALSE),
+            join(df %>%
+                     summarise_each(funs(min(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.min = value),
+                 df %>%
+                     summarise_each(funs(max(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.max = value),
+                 by = "Measure")
+        )
+    } %>% select(Model, Level, Value.min, Value.max, Value, Measure)
+
+    df.lineplot = df.lineplot %>%
+        rbind(df.orig.cls.lp.measures.processed)
+
+    df.lineplot.loess = df.orig.cls.lp.measures %>%
+                        melt(measure.vars = performance.measures) %>%
+                        rename(Measure = variable, Value = value,
+                               Level = Missing.attributes) %>%
+                        mutate(Model = "Original classifiers")
+
+    # data-for-images: uncertaintified classifiers
+
+    df.unc.cls =
+        foreach::foreach(model.name = CLASSIFIERS.LIST,
+                         .combine   = rbind) %do%
+    {
+        classifier.performance.original.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.PERFORMANCE.INTERVAL)
+
+        performance.df = readRDS(classifier.performance.original.file.path)
+
+        performance.df %>% mutate(Classifier = model.name)
+    }
+
+    df.unc.cls.bp.measures = df.unc.cls %>%
+        filter(is.na(Missing.attributes)) %>%
+        select(-Missing.attributes, -Classifier)
+
+    df.barplot = df.barplot %>%
+        rbind(
+            cbind(
+                data.frame(Model = "Uncertaintified classifiers",
+                           stringsAsFactors = FALSE),
+                join(df.unc.cls.bp.measures %>%
+                         summarise_each(funs(min(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.min = value),
+                     df.unc.cls.bp.measures %>%
+                         summarise_each(funs(max(., na.rm = TRUE))) %>%
+                         melt(id.vars = NULL) %>%
+                         rename(Measure = variable, Value.max = value),
+                     by = "Measure"))
+            %>% select(Model, Value.min, Value.max, Measure))
+
+    df.unc.cls.lp.measures = df.unc.cls %>%
+        filter(!is.na(Missing.attributes)) %>%
+        select(-Classifier)
+
+
+    df.unc.cls.lp.measures.processed =
+        foreach::foreach(missing.lvl = 0:max(df.unc.cls.lp.measures$Missing.attributes),
+                         .combine = rbind) %do%
+    {
+        df = df.unc.cls.lp.measures %>%
+            filter(Missing.attributes == missing.lvl) %>%
+            select(-Missing.attributes)
+
+        cbind(
+            data.frame(Model = "Uncertaintified classifiers",
+                       Level = missing.lvl,
+                       Value = NA,
+                       stringsAsFactors = FALSE),
+            join(df %>%
+                     summarise_each(funs(min(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.min = value),
+                 df %>%
+                     summarise_each(funs(max(., na.rm = TRUE))) %>%
+                     melt(id.vars = NULL) %>%
+                     rename(Measure = variable, Value.max = value),
+                 by = "Measure")
+        )
+    } %>% select(Model, Level, Value.min, Value.max, Value, Measure)
+
+    df.lineplot = df.lineplot %>%
+        rbind(df.unc.cls.lp.measures.processed)
+
+    df.lineplot.loess =
+        rbind(df.lineplot.loess,
+              df.unc.cls.lp.measures %>%
+              melt(measure.vars = performance.measures) %>%
+              rename(Measure = variable, Value = value,
+                     Level = Missing.attributes) %>%
+              mutate(Model = "Uncertaintified classifiers"))
+
+    # data-for-images: imputation
+
+    df.imp = readRDS(replace.strings(DATASETS.NAME.PATTERN, dataset.name,
+                                     CLASSIFIERS.IMPUTATION.MODEL))
+
+    df.imp.bp.measures = df.imp$folds.performances %>% filter(is.na(Missing.attributes))
+    df.imp.lp.measures = df.imp$folds.performances %>% filter(!is.na(Missing.attributes))
+
+    df.barplot = df.barplot %>%
+        rbind(df.imp.bp.measures %>%
+                  select(-Fold, -Missing.attributes) %>%
+                  summarise_each(funs(mean)) %>%
+                  melt(id.vars = NULL) %>%
+                  rename(Measure = variable, Value.min = value) %>%
+                  rbind(data.frame(Measure = "Decisiveness", Value.min = 1)) %>%
+                  mutate(Value.max = NA, Model = "Imputation"))
+
+    df.lineplot = df.lineplot %>% rbind(
+        foreach::foreach(missing.lvl = 0:max(df.imp.lp.measures$Missing.attributes),
+                         .combine    = rbind) %do%
+        {
+            df.imp.lp.measures %>% filter(Missing.attributes == missing.lvl) %>%
+                select(-Fold, -Missing.attributes) %>%
+                summarise_each(funs(mean)) %>%
+                melt(id.vars = NULL) %>%
+                rename(Measure = variable, Value = value) %>%
+                rbind(data.frame(Measure = "Decisiveness", Value = 1)) %>%
+                mutate(Value.min = NA, Value.max = NA, Model = "Imputation",
+                       Level = missing.lvl)
+        } %>% select(Model, Level, Value.min, Value.max, Value, Measure))
+
+    # data-for-images: aggregation strategies
+
+    df.agg = readRDS(replace.strings(DATASETS.NAME.PATTERN, dataset.name,
+                                     AGGREGATION.LEARNED))
+
+    df.agg.bp.measures = df.agg$folds.performances %>% filter(is.na(Missing.attributes))
+    df.agg.lp.measures = df.agg$folds.performances %>% filter(!is.na(Missing.attributes))
+
+    df.barplot = df.barplot %>%
+        rbind(df.agg.bp.measures %>%
+                  select(-Fold, -Missing.attributes) %>%
+                  summarise_each(funs(mean)) %>%
+                  melt(id.vars = NULL) %>%
+                  rename(Measure = variable, Value.min = value) %>%
+                  rbind(data.frame(Measure = "Decisiveness", Value.min = 1)) %>%
+                  mutate(Value.max = NA, Model = "Aggregation strategy"))
+
+    df.lineplot = df.lineplot %>% rbind(
+        foreach::foreach(missing.lvl = 0:max(df.agg.lp.measures$Missing.attributes),
+                         .combine    = rbind) %do%
+        {
+            df.agg.lp.measures %>% filter(Missing.attributes == missing.lvl) %>%
+                select(-Fold, -Missing.attributes) %>%
+                summarise_each(funs(mean)) %>%
+                melt(id.vars = NULL) %>%
+                rename(Measure = variable, Value = value) %>%
+                rbind(data.frame(Measure = "Decisiveness", Value = 1)) %>%
+                mutate(Value.min = NA, Value.max = NA, Model = "Aggregation strategy",
+                       Level = missing.lvl)
+        } %>% select(Model, Level, Value.min, Value.max, Value, Measure))
+
+    # ---
+
+    df.barplot$Model =
+        with(df.barplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
+    df.lineplot$Model =
+        with(df.lineplot, factor(Model, levels = intersect(factor.levels, unique(Model))))
+
+    df.lineplot$Level = with(df.lineplot, Level / (max(Level) + 1))
+    df.lineplot.loess$Level = with(df.lineplot.loess, Level / (max(Level) + 1))
+    
+    image.path = NULL
+
+    for (performance.measure in performance.measures)
+    {
+        p1 = get.barplot(df.barplot %>% filter(Measure == performance.measure))
+
+        p2 = get.lineplot(df.lineplot %>% filter(Measure == performance.measure),
+                          df.lineplot.loess %>% filter(Measure == performance.measure))
+
+        if (performance.measure != "Specificity")
+        {
+            image.path = file.path(IMAGES.DIR, 
+                                   paste0(dataset.name, "-", tolower(performance.measure),
+                                          ".png"))
+            
+            png(image.path, width = 900, height = 250)
+            grid.newpage()
+        }
+
+        if (!(performance.measure %in% c("Sensitivity", "Specificity")))
+        {
+            pushViewport(viewport(layout = grid.layout(2, 2, heights = unit(c(0.7, 5), "null"),
+                                                       widths = unit(c(2, 3), "null"))))
+            grid.text(performance.measure, vp = viewport(layout.pos.row = 1, layout.pos.col = 1:2),
+                      gp = gpar(fontsize = 18))
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 1))
+            grid.draw(p1)
+            popViewport()
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 2))
+            grid.draw(ggplot_gtable(ggplot_build(p2)))
+            popViewport()
+        }
+
+        if (performance.measure == "Sensitivity")
+        {
+            pushViewport(viewport(layout = grid.layout(2, 2, heights = unit(c(0.7, 5), "null"),
+                                                       widths = unit(c(2.5, 2.5), "null"))))
+            grid.text("Sensitivity", vp = viewport(layout.pos.row = 1, layout.pos.col = 1),
+                      gp = gpar(fontsize = 18))
+
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 1))
+            grid.draw(p1)
+            popViewport()
+        } else if (performance.measure == "Specificity") {
+            grid.text("Specificity", vp = viewport(layout.pos.row = 1, layout.pos.col = 2),
+                      gp = gpar(fontsize = 18))
+            pushViewport(viewport(layout.pos.row = 2, layout.pos.col = 2))
+            grid.draw(p1)
+            popViewport()
+        }
+        
+        if (performance.measure != "Sensitivity")
+        {
+            dev.off()
+            cat(paste0("![](", image.path, ")\n\n---\n\n"))
+        }
+    }
     
     cat("\n\n")
 }
