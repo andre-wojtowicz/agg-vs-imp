@@ -539,9 +539,7 @@ configure_hosts()
 # check if new password is set
 
 if [ "$NEW_PASS" == "" ]; then
-    fail "Empty new password"
-    report_error 1
-    check_if_command_error
+    warn "Empty new password"
 fi
 
 # read hosts from file or stdin
