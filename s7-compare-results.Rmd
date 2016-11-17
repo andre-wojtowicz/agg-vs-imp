@@ -521,7 +521,7 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
                                    paste0(dataset.name, "-", tolower(performance.measure),
                                           ".png"))
             
-            png(image.path, width = 900, height = 250)
+            png(image.path, width = 900, height = 250, type = "cairo-png")
             grid.newpage()
         }
 
