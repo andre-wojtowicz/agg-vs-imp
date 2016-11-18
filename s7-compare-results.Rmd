@@ -589,6 +589,8 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
     
     ## AD-Score and statistical tests
     
+    cat("Summarized Accuracy \\* Decisiveness score (AD-Score):\n\n")
+    
     ad.data = df.lineplot.loess %>% filter(Measure %in% c("Accuracy", "Decisiveness"))
     ad.data[which(is.na(ad.data[, "Value"])), "Value"] = 0
     
@@ -635,6 +637,8 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
     dev.off()
     
     cat(paste0("![](", image.path, ")\n\n---\n\n"))
+    
+    cat("Two-sided Student's t-Test concerning whether by-obscurance-level-weighted mean of AD-scores differ:\n\n")
     
     pvals = sapply(levels(ad.data$Model), function(a1) {
                 sapply(levels(ad.data$Model), function(a2) {
