@@ -501,21 +501,15 @@ check_if_command_error()
 
 my_configure_hosts()
 {
-    #generate_ssh_keys
-    #hosts_push_ssh_key
     hosts_scan_available
-    hosts_change_password
     hosts_push_shell_script
     hosts_enable_swap
     dump_project_r_files
     hosts_push_project_r_files
     hosts_install_env
-    hosts_set_power_off
     hosts_install_mro
-    #hosts_install_r_libraries
-        hosts_push_r_libraries_dump
+    hosts_push_r_libraries_dump
     make_remote_connection_list_nproc
-        #make_remote_connection_list_single
 }
 
 configure_hosts()
