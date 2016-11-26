@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# working with WMI Rescue - small Linux image based on 
+# working with WMI Rescue - small Linux image based on
 # Debian distribution; see http://rescue.wmi.amu.edu.pl
 
 # config
@@ -309,7 +309,18 @@ hosts_enable_swap()
     info "Enabling swap on hosts"
     for host in "${HOSTS_ARRAY[@]}"; do
         step "-- ${host}"
-        try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "swapon $SWAP_PART"
+        try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "if [ \$(lvs | grep -P 'swap(.*)-wi--' | wc -l) -eq 1 ]; then vgchange -a y linux > /dev/null; fi ; if [ \$(swapon -s | wc -l) -eq 0 ]; then swapon $SWAP_PART; else echo -n 'swap already enabled   '; fi"
+        next
+    done
+    check_if_command_error
+}
+
+hosts_disable_swap()
+{
+    info "Disabling swap on hosts"
+    for host in "${HOSTS_ARRAY[@]}"; do
+        step "-- ${host}"
+        try ssh ${SSH_OPTIONS} -i ${SSH_KEYS_DIR}/${SSH_KEY_PRIV} ${SSH_USER}@${host} "swapoff -a"
         next
     done
     check_if_command_error
@@ -529,12 +540,6 @@ configure_hosts()
     make_remote_connection_list_nproc
         #make_remote_connection_list_single
 }
-
-# check if new password is set
-
-if [ "$NEW_PASS" == "" ]; then
-    warn "Empty new password"
-fi
 
 # read hosts from file or stdin
 
