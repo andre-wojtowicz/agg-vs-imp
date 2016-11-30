@@ -23,11 +23,12 @@ aggregation strategies.
 # Table of Contents
 
  1. [Experiment overview](#experiment-overview)
- 2. [Datasets](#datasets)
- 3. [Original classifiers](#original-classifiers)
- 4. [Interval classifiers](#interval-classifiers)
- 5. [Imputation methods](#imputation-methods)
- 6. [Aggregation strategies](#aggregation-strategies)
+ 2. [Results](#results):
+  * [bank-marketing](#bank-marketing)
+  * [census-income](#census-income)
+  * [credit-card](#credit-card)
+  * [magic](#magic)
+  * [wine-quality](#wine-quality)
 
 
 ***
