@@ -18,9 +18,9 @@ See: [caret](https://topepo.github.io/caret)
 
  * K1 - glm
  * K2 - nnet
- * K3 - SVM
- * K4 - J48
- * K5 - kNN
+ * K3 - svmLinear
+ * K4 - rpart
+ * K5 - nnet
 
 ### Imputation
 

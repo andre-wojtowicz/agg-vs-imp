@@ -75,7 +75,7 @@ internal method). In all learning procedures I use nested `r NCV.FOLDS`-times cr
 I also use:
 
  * classification methods: generalized linear models `glm`, neural networks `nnet`, support
- vector machines with linear kernel `svmLinear`, classification trees `rpart`, k-nearest neighbors algorithm `knn` and, as a baseline model, one-rule method `OneR`,
+ vector machines linear model `svmLinear`, classification trees `rpart`, k-nearest neighbors algorithm `knn` and, as a baseline model, one-rule method `OneR`,
  * imputation methods: `r paste(IMPUTATION.METHODS, collapse = ", ")`,
  * aggregation strategies: the strategies that always return prediction (see `aggregation-operators*.R`).
  
