@@ -24,13 +24,13 @@ See: [caret](https://topepo.github.io/caret)
 
 ### Imputation
 
- * I1 - median & mode ([mlr](https://github.com/mlr-org/mlr))
+ * I1 - median & mode
  * I2 - random forest ([missForest](https://github.com/stekhoven/missForest))
  * I3 - chained equations ([mice](http://dx.doi.org/10.18637/jss.v045.i03))
 
 ### Agregation operators
 
- * Ai - all non-NA producing aggregation strategies from the article [Solving the problem of incomplete data in medical diagnosis via interval modeling](http://dx.doi.org/10.1016/j.asoc.2016.05.029)
+ * Ai - aggregation strategies from the article [Solving the problem of incomplete data in medical diagnosis via interval modeling](http://dx.doi.org/10.1016/j.asoc.2016.05.029)
 
 ## Experiment procedure
 
