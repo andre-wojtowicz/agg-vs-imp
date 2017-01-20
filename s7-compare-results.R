@@ -29,7 +29,7 @@ palette.lwd = c("Original classifiers"        = 1,
 
 performance.measures = c("Accuracy", "Decisiveness", "Sensitivity", "Specificity")
 
-get.barplot = function(data)
+get.barplot = function(data, measure.name = NULL)
 {
     # data: Model | Value.min | Value.max | Measure
 
@@ -44,39 +44,40 @@ get.barplot = function(data)
         geom_hline(yintercept = 0.75, color = "grey90", linetype = 2) +
         geom_hline(yintercept = 1.00, color = "grey90", linetype = 2) +
         geom_bar(stat  = "identity",
-                 color = "grey60",
                  width = 0.75) +
         scale_y_continuous(expand = c(0, 0),
                            limits = c(0, 1)) +
         theme_classic() +
         geom_hline(yintercept = 0,   color = "grey") +
         geom_vline(xintercept = ifelse(nlevels(data$Model) > 1, 0.4, 0.5), color = "grey") +
-        theme(axis.title.x    = element_text(color = "grey50", size = 10),
+        theme(axis.title.x    = element_text(color = "black", size = 10,
+                                             margin = unit(c(0.4, 0, 0, 0), "cm")),
               axis.title.y    = element_blank(),
               axis.text.x     = element_text(color = "grey50"),
               axis.text.y     = element_text(color = "black"),
               axis.ticks.x    = element_line(color = "grey50"),
               axis.ticks.y    = element_line(color = "grey50"),
               legend.position = "none",
-              plot.margin     = unit(c(0.5, 1.5, 0.5, 0.5), "cm")) +
-        labs(y = "Measure") +
+              plot.margin     = unit(c(0.5, 1.75, 0.5, 0.75), "cm")) +
+        labs(y = ifelse(is.null(measure.name), "Measure", measure.name)) +
         coord_flip() +
         geom_segment(aes(x = Model, xend = Model,
                          y = Value.min,
-                         yend = ifelse(!is.na(Value.max), Value.max, Value.min)),
-                     color = "grey60") +
+                         yend = ifelse(!is.na(Value.max), Value.max, Value.min),
+                         color = Model)) +
         geom_segment(aes(x = as.numeric(Model) - 0.25, xend = as.numeric(Model) + 0.25,
-                         y = ifelse(!is.na(Value.max), Value.max, Value.min),
-                         yend = ifelse(!is.na(Value.max), Value.max, Value.min)),
-                     color = "grey60") +
+                         y = ifelse(!is.na(Value.max), Value.max, Value.min - 0.01),
+                         yend = ifelse(!is.na(Value.max), Value.max, Value.min - 0.01),
+                         color = Model)) +
         geom_text(aes(x = Model,
                       y = ifelse(!is.na(Value.max), Value.max, Value.min),
                       label = format(ifelse(!is.na(Value.max), Value.max, Value.min),
                                      digits = 3, nsmall = 3)),
                   hjust  = -0.25,
                   size   = 3,
-                  colour = "grey45") +
-        scale_fill_manual(values = palette.fill)
+                  colour = "black") +
+        scale_fill_manual(values = palette.fill) +
+        scale_color_manual(values = palette.fill)
 
     if (nrow(filter(data, !is.na(Value.max) & Value.min > 0.2)) > 0)
     {
@@ -97,7 +98,7 @@ get.barplot = function(data)
                               y = Value.min,
                               label = format(Value.min, digits = 3, nsmall = 3),
                               hjust  = -0.25),
-                          colour = "grey45",
+                          colour = "black",
                           size   = 3)
     }
 
@@ -107,7 +108,7 @@ get.barplot = function(data)
     gt
 }
 
-get.lineplot = function(data)
+get.lineplot = function(data, measure.name = NULL)
 {
     # data: Level | Measure | Value | Model
 
@@ -160,19 +161,23 @@ get.lineplot = function(data)
         theme_classic() +
         geom_hline(yintercept = 0, color = "grey") +
         geom_vline(xintercept = 0, color = "grey") +
-        theme(axis.title.x    = element_text(color = "grey50", size = 10),
-              axis.title.y    = element_text(color = "grey50", size = 10),
+        theme(axis.title.x    = element_text(color = "black", size = 10,
+                                             margin = unit(c(0.4, 0, 0, 0), "cm")),
+              axis.title.y    = element_text(color = "black", size = 10,
+                                             margin = unit(c(0, 0.4, 0, 0), "cm")),
               axis.text.x     = element_text(color = "grey50"),
               axis.text.y     = element_text(color = "grey50"),
               axis.ticks.x    = element_line(color = "grey50"),
               axis.ticks.y    = element_line(color = "grey50"),
-              legend.position = "right",
-              legend.title    = element_blank(),
-              plot.margin     = unit(c(0.5, 0, 0.5, 0.5), "cm")) +
-        labs(x = "Missing data level", y = "Measure") +
+              legend.position = "bottom",
+              legend.title    = element_text(color = "black", size = 10, face = "bold"),
+              plot.margin     = unit(c(0.5, 1.0, 0.5, 0.5), "cm")) +
+        labs(x = "Missing data level",
+             y = ifelse(is.null(measure.name), "Measure", measure.name)) +
         scale_color_manual(values = palette.fill) +
         scale_fill_manual(values = palette.fill) +
-        scale_size_manual(values = palette.lwd)
+        scale_size_manual(values = palette.lwd) +
+        guides(color = guide_legend(ncol = 2, title.position = "top", title.hjust = 0.5))
 
     return(p)
 
