@@ -135,8 +135,9 @@ optim.factor.numeric.classic = function(model, case.predictors.all, factors.conf
     pred.vals
 }
 
+
 calculate.optim.interval = function(case.predictors.all, case.class,
-                                    case.predictors.used, i)
+                                    case.predictors.used, i, model)
 {
     interval.lower = NULL
     interval.upper = NULL

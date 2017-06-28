@@ -7,6 +7,8 @@ setup.logger(file.path(LOGGER.OUTPUT.DIR, LOGGER.OUTPUT.S4.1.FILE),
 
 flog.info("Step 4-1: original classifiers performance on obscured dataset")
 
+seeds = get.seeds(SEED, c(length(DATASETS.NAMES), 2))
+
 for (dataset.name in DATASETS.NAMES)
 {
     flog.info(paste("Dataset:", dataset.name))
@@ -140,6 +142,31 @@ for (dataset.name in DATASETS.NAMES)
         }
 
         flog.info(paste(rep("*", 10), collapse = ""))
+    }
+
+    ## additional CV
+
+    classifier.performance.original.cv.file.path =
+        replace.strings(c(DATASETS.NAME.PATTERN),
+                        c(dataset.name),
+                        CLASSIFIERS.PERFORMANCE.ORIGINAL.CV)
+
+    if (!file.exists(classifier.performance.original.cv.file.path) | OVERWRITE.OUTPUT.FILES)
+    {
+        flog.info("Additional CV")
+
+        seed.cv = extract.seed(seeds,
+                               c(which(dataset.name == DATASETS.NAMES), 2))
+
+        orig.folds.performance =
+            cross.validation.orig(dataset.obscured,
+                                  CLASSIFIERS.LIST,
+                                  NCV.FOLDS,
+                                  NCV.PERFORMANCE.SELECTOR,
+                                  NCV.PERFORMANCE.MAXIMIZE,
+                                  seed.cv)
+
+        saveRDS(orig.folds.performance, classifier.performance.original.cv.file.path)
     }
 
     flog.info(paste(rep("*", 25), collapse = ""))

@@ -51,9 +51,13 @@ CLASSIFIERS.LEARNED =
 CLASSIFIERS.PERFORMANCE.ORIGINAL =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
                                       CLASSIFIERS.NAME.PATTERN,  "-performance-original.rds"))
+CLASSIFIERS.PERFORMANCE.ORIGINAL.CV =
+    file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-performance-original-cv.rds"))
 CLASSIFIERS.PERFORMANCE.INTERVAL =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-",
                                       CLASSIFIERS.NAME.PATTERN, "-performance-interval.rds"))
+CLASSIFIERS.PERFORMANCE.INTERVAL.CV =
+    file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-performance-interval-cv.rds"))
 CLASSIFIERS.IMPUTATION.BASELINE =
     file.path(CLASSIFIERS.DIR, paste0(DATASETS.NAME.PATTERN, "-imputation-baseline.rds"))
 CLASSIFIERS.IMPUTATION.MODEL =

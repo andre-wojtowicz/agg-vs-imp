@@ -1,5 +1,362 @@
 # functions for cross-validations
 
+cross.validation.orig = function(dataset, models,
+                                 no.folds, performance.selector,
+                                 performance.maximize,
+                                 .random.seed = NULL)
+{
+    if (!is.null(.random.seed))
+    {
+        assign(".Random.seed", .random.seed, envir = .GlobalEnv)
+    }
+
+    colnames(dataset)[ncol(dataset)] = "Class"
+
+    idx.outer = caret::createFolds(dataset$Class,
+                                   k = no.folds)
+
+    folds.performance = data.frame()
+
+    models.list = list()
+
+    for (model.name in models)
+    {
+        model.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.LEARNED)
+
+        model = readRDS(model.file.path)
+
+        models.list[[model.name]] = model
+    }
+
+    for (i in 1:no.folds)
+    {
+        flog.info(paste("Fold", i))
+
+        ds.train  = dataset[as.numeric(unlist(idx.outer[setdiff(1:no.folds, i)])), ]
+        ds.test   = dataset[as.numeric(unlist(idx.outer[i])), ]
+
+        results.train = c()
+
+        for (model.name in models)
+        {
+            model = models.list[[model.name]]
+            preproc.scheme = attr(model, "preproc.scheme")
+            dataset.obscured.preprocessed =
+                stats::predict(preproc.scheme, ds.train)
+
+            dataset.no.nas =
+                dataset.obscured.preprocessed[which(rowSums(is.na(
+                    dataset.obscured.preprocessed[
+                        as.character(attr(model, "used.predictors"))])) == 0), ]
+
+            predictions =
+                suppressWarnings(stats::predict(model, dataset.no.nas,
+                                                na.action = NULL))
+            cf.matrix = caret::confusionMatrix(predictions,
+                                               dataset.no.nas[, ncol(dataset.no.nas)])
+
+            results.train = c(results.train, cf.matrix$overall[[performance.selector]])
+        }
+
+        model =
+            models.list[[ifelse(performance.maximize, which.max, which.min)(results.train)]]
+
+        preproc.scheme = attr(model, "preproc.scheme")
+        dataset.obscured.preprocessed =
+            stats::predict(preproc.scheme, ds.test)
+
+        dataset.no.nas =
+            dataset.obscured.preprocessed[which(rowSums(is.na(
+                dataset.obscured.preprocessed[
+                    as.character(attr(model, "used.predictors"))])) == 0), ]
+
+        predictions =
+            suppressWarnings(stats::predict(model, dataset.no.nas,
+                                            na.action = NULL))
+        cf.matrix = caret::confusionMatrix(predictions,
+                                           dataset.no.nas[, ncol(dataset.no.nas)])
+
+        folds.performance =
+            rbind(folds.performance,
+               data.frame(Fold.id = i,
+                          Missing.attributes = NA,
+                          Accuracy     = cf.matrix$overall["Accuracy"],
+                          Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                          Specificity  = cf.matrix$byClass["Specificity"],
+                          Decisiveness = nrow(dataset.no.nas)/nrow(ds.test)))
+
+        for (num.missing.attr in 0:max(rowSums(is.na(dataset.obscured.preprocessed))))
+        {
+            flog.info(paste("Missing attributes:", num.missing.attr))
+
+            dataset.num.miss.attr =
+                dataset.obscured.preprocessed[which(rowSums(is.na(
+                    dataset.obscured.preprocessed)) == num.missing.attr), ]
+
+            dataset.no.nas =
+                dataset.num.miss.attr[which(rowSums(is.na(
+                    dataset.num.miss.attr[
+                        as.character(attr(model, "used.predictors"))])) == 0), ]
+
+            if (nrow(dataset.no.nas) > 0)
+            {
+                predictions =
+                    suppressWarnings(stats::predict(model, dataset.no.nas,
+                                                    na.action = NULL))
+                cf.matrix = caret::confusionMatrix(predictions,
+                                                   dataset.no.nas[, ncol(dataset.no.nas)])
+
+                flog.info(paste("  Accuracy:    ", round(cf.matrix$overall["Accuracy"], 3)))
+                flog.info(paste("  Sensitivity: ", round(cf.matrix$byClass["Sensitivity"], 3)))
+                flog.info(paste("  Specificity: ", round(cf.matrix$byClass["Specificity"], 3)))
+                flog.info(paste("  Decisiveness:",
+                                round(nrow(dataset.no.nas)/nrow(dataset.num.miss.attr), 3)))
+
+
+
+                folds.performance = rbind(folds.performance,
+                                       data.frame(Fold.id = i,
+                                                  Missing.attributes = num.missing.attr,
+                                                  Accuracy     = cf.matrix$overall["Accuracy"],
+                                                  Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                                                  Specificity  = cf.matrix$byClass["Specificity"],
+                                                  Decisiveness = nrow(dataset.no.nas)/nrow(dataset.num.miss.attr)))
+
+            } else {
+                flog.info("  Accuracy:     -")
+                flog.info("  Sensitivity:  -")
+                flog.info("  Specificity:  -")
+                flog.info("  Decisiveness: 0")
+
+                folds.performance = rbind(folds.performance,
+                                       data.frame(Fold.id = i,
+                                                  Missing.attributes = num.missing.attr,
+                                                  Accuracy     = NA,
+                                                  Sensitivity  = NA,
+                                                  Specificity  = NA,
+                                                  Decisiveness = 0.0))
+            }
+        }
+    }
+
+    folds.performance
+}
+
+# ----------------
+
+cross.validation.unc  = function(dataset, models,
+                                 no.folds, performance.selector,
+                                 performance.maximize,
+                                 .random.seed = NULL)
+{
+    if (!is.null(.random.seed))
+    {
+        assign(".Random.seed", .random.seed, envir = .GlobalEnv)
+    }
+
+    colnames(dataset)[ncol(dataset)] = "Class"
+
+    idx.outer = caret::createFolds(dataset$Class,
+                                   k = no.folds)
+
+    folds.performance = data.frame()
+
+    models.list = list()
+    predictions.list = list()
+    references.list  = list()
+    missings.list    = list()
+
+    for (model.name in models)
+    {
+        print(model.name)
+
+        model.file.path =
+            replace.strings(c(DATASETS.NAME.PATTERN, CLASSIFIERS.NAME.PATTERN),
+                            c(dataset.name, model.name),
+                            CLASSIFIERS.LEARNED)
+
+        model = readRDS(model.file.path)
+
+        models.list[[model.name]] = model
+
+        preproc.scheme = attr(model, "preproc.scheme")
+        dataset.obscured.preprocessed =
+            stats::predict(preproc.scheme, dataset)
+
+        dataset.interval =
+            foreach::foreach(
+                i = 1:nrow(dataset.obscured.preprocessed),
+                .combine       = rbind,
+                .multicombine  = TRUE,
+                .maxcombine    = nrow(dataset.obscured.preprocessed),
+                .export        = c("calculate.optim.interval", "optim.factor.numeric.classic", "optim.numeric.classic", "optim.factor.grid.search", "OPTIMIZATION.NUMERIC.REPS"),
+                .packages      = c("nloptr", "data.table", "foreach")) %dopar%
+                {
+                    case.predictors.all = dataset.obscured.preprocessed[
+                        i, 1:(ncol(dataset.obscured.preprocessed) - 1), drop = FALSE]
+                    case.class = dataset.obscured.preprocessed[
+                        i, ncol(dataset.obscured.preprocessed), drop = FALSE]
+
+                    case.predictors.used = case.predictors.all[
+                        , as.character(attr(model, "used.predictors")), drop = FALSE]
+
+                    interval = calculate.optim.interval(case.predictors.all, case.class,
+                                                        case.predictors.used, i, model)
+
+                    interval.lower = interval[1]
+                    interval.upper = interval[2]
+
+                    flog.info(paste0("Predicted interval: [",
+                                     round(interval.lower, 4), ", ",
+                                     round(interval.upper, 4), "]"))
+
+                    data.frame(lower = interval.lower, upper = interval.upper)
+                }
+
+        dataset.binary = apply(dataset.interval, 1, function(x){
+            if (x[1] > 0.5)
+            {
+                return(1)
+            } else if (x[2] <= 0.5) {
+                return(0)
+            }
+            return(NA)
+        })
+
+        dataset.classes = as.integer(dataset.obscured.preprocessed[
+            , ncol(dataset.obscured.preprocessed)]) - 1
+
+        dataset.no.missing.attrs = rowSums(is.na(dataset.obscured.preprocessed))
+
+        dataset.binded = data.frame(Predictions = dataset.binary,
+                                    Reference   = dataset.classes,
+                                    Missing.attribues = dataset.no.missing.attrs)
+
+        #dataset.binded.complete = dataset.binded %>%
+        #    filter(!is.na(Predictions))
+
+        predictions.list[[model.name]] = dataset.binded$Predictions
+        references.list[[model.name]]  = dataset.binded$Reference
+        missings.list[[model.name]]    = dataset.binded$Missing.attribues
+    }
+
+    for (i in 1:no.folds)
+    {
+        flog.info(paste("Fold", i))
+
+        results.train = c()
+
+        for (model.name in models)
+        {
+            preds = predictions.list[[model.name]][as.numeric(unlist(idx.outer[setdiff(1:no.folds, i)]))]
+            refs  = references.list[[model.name]][as.numeric(unlist(idx.outer[setdiff(1:no.folds, i)]))]
+
+            refs  = refs[!is.na(preds)]
+            preds = preds[!is.na(preds)]
+
+            cf.matrix = suppressWarnings(
+                caret::confusionMatrix(preds, refs))
+
+            results.train = c(results.train, cf.matrix$overall[[performance.selector]])
+        }
+
+        model.name =
+            models[ifelse(performance.maximize, which.max, which.min)(results.train)]
+
+        preds = predictions.list[[model.name]][as.numeric(unlist(idx.outer[i]))]
+        refs  = references.list[[model.name]][as.numeric(unlist(idx.outer[i]))]
+        msgs  = missings.list[[model.name]][as.numeric(unlist(idx.outer[i]))]
+
+        refs2  = refs[!is.na(preds)]
+        preds2 = preds[!is.na(preds)]
+
+        cf.matrix = suppressWarnings(
+            caret::confusionMatrix(preds2,
+                                   refs2))
+
+        folds.performance =
+            rbind(folds.performance,
+                  data.frame(Fold.id = i,
+                             Missing.attributes = NA,
+                             Accuracy     = cf.matrix$overall["Accuracy"],
+                             Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                             Specificity  = cf.matrix$byClass["Specificity"],
+                             Decisiveness = length(preds2)/length(preds)))
+
+        for (num.missing.attr in 0:max(msgs))
+        {
+            flog.info(paste("Missing attributes:", num.missing.attr))
+
+            msgs.ids = which(msgs == num.missing.attr)
+
+
+            if (length(msgs.ids) > 0)
+            {
+                preds.m = preds[msgs.ids]
+                refs.m  = refs[msgs.ids]
+
+                refs2  = refs.m[!is.na(preds.m)]
+                preds2 = preds.m[!is.na(preds.m)]
+
+                if (length(preds2) > 0)
+                {
+
+                    cf.matrix = suppressWarnings(
+                        caret::confusionMatrix(factor(preds2, levels = c(0, 1)),
+                                               factor(refs2, levels = c(0, 1))))
+
+                    flog.info(paste("  Accuracy:    ", round(cf.matrix$overall["Accuracy"], 3)))
+                    flog.info(paste("  Sensitivity: ", round(cf.matrix$byClass["Sensitivity"], 3)))
+                    flog.info(paste("  Specificity: ", round(cf.matrix$byClass["Specificity"], 3)))
+                    flog.info(paste("  Decisiveness:",
+                                    round(length(preds2)/length(preds.m), 3)))
+
+                    folds.performance = rbind(folds.performance,
+                                              data.frame(Fold.id = i,
+                                                         Missing.attributes = num.missing.attr,
+                                                         Accuracy     = cf.matrix$overall["Accuracy"],
+                                                         Sensitivity  = cf.matrix$byClass["Sensitivity"],
+                                                         Specificity  = cf.matrix$byClass["Specificity"],
+                                                         Decisiveness = length(preds2)/length(preds.m)))
+                } else {
+                    flog.info("  Accuracy:     -")
+                    flog.info("  Sensitivity:  -")
+                    flog.info("  Specificity:  -")
+                    flog.info("  Decisiveness: 0")
+
+                    folds.performance = rbind(folds.performance,
+                                              data.frame(Fold.id = i,
+                                                         Missing.attributes = num.missing.attr,
+                                                         Accuracy     = NA,
+                                                         Sensitivity  = NA,
+                                                         Specificity  = NA,
+                                                         Decisiveness = 0.0))
+                }
+            } else {
+                flog.info("  Accuracy:     -")
+                flog.info("  Sensitivity:  -")
+                flog.info("  Specificity:  -")
+                flog.info("  Decisiveness: 0")
+
+                folds.performance = rbind(folds.performance,
+                                          data.frame(Fold.id = i,
+                                                     Missing.attributes = num.missing.attr,
+                                                     Accuracy     = NA,
+                                                     Sensitivity  = NA,
+                                                     Specificity  = NA,
+                                                     Decisiveness = 0.0))
+            }
+        }
+    }
+
+    folds.performance
+}
+
+# ----------------
+
 nested.cross.validation = function(dataset, model.name,
                                    model.grid, model.attrs, no.folds,
                                    preprocessing.methods, performance.selector,

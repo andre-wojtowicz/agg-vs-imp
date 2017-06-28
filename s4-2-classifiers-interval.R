@@ -68,7 +68,7 @@ for (dataset.name in DATASETS.NAMES)
                     , as.character(attr(model, "used.predictors")), drop = FALSE]
 
                 interval = calculate.optim.interval(case.predictors.all, case.class,
-                                         case.predictors.used, i)
+                                         case.predictors.used, i, model)
 
                 interval.lower = interval[1]
                 interval.upper = interval[2]
@@ -196,6 +196,31 @@ for (dataset.name in DATASETS.NAMES)
         }
 
         flog.info(paste(rep("*", 10), collapse = ""))
+    }
+
+    ## additional CV
+
+    classifier.performance.interval.cv.file.path =
+        replace.strings(c(DATASETS.NAME.PATTERN),
+                        c(dataset.name),
+                        CLASSIFIERS.PERFORMANCE.INTERVAL.CV)
+
+    if (!file.exists(classifier.performance.interval.cv.file.path) | OVERWRITE.OUTPUT.FILES)
+    {
+        flog.info("Additional CV")
+
+        seed.cv = extract.seed(seeds,
+                               c(which(dataset.name == DATASETS.NAMES), 2))
+
+        unc.folds.performance =
+            cross.validation.unc(dataset.obscured,
+                                  CLASSIFIERS.LIST,
+                                  NCV.FOLDS,
+                                  NCV.PERFORMANCE.SELECTOR,
+                                  NCV.PERFORMANCE.MAXIMIZE,
+                                  seed.cv)
+
+        saveRDS(unc.folds.performance, classifier.performance.interval.cv.file.path)
     }
 
     flog.info(paste(rep("*", 25), collapse = ""))

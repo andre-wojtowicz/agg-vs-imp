@@ -593,6 +593,38 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
     cat("Summarized Accuracy \\* Decisiveness score (AD-Score):\n\n")
     
     ad.data = df.lineplot.loess %>% filter(Measure %in% c("Accuracy", "Decisiveness"))
+    ad.data = ad.data %>% filter(!(Model %in% c("Original classifiers", "Uncertaintified classifiers")))
+    
+    classifier.performance.original.cv.file.path =
+        replace.strings(c(DATASETS.NAME.PATTERN),
+                        c(dataset.name),
+                        CLASSIFIERS.PERFORMANCE.ORIGINAL.CV)
+    classifier.performance.interval.cv.file.path =
+        replace.strings(c(DATASETS.NAME.PATTERN),
+                        c(dataset.name),
+                        CLASSIFIERS.PERFORMANCE.INTERVAL.CV)
+    
+    ad.data.orig = readRDS(classifier.performance.original.cv.file.path)
+    ad.data.unc  = readRDS(classifier.performance.interval.cv.file.path)
+    
+    ad.data.orig = ad.data.orig %>% 
+        mutate(Model = "Original classifiers") %>%
+        rename(Level = Missing.attributes) %>%
+        select(-c(Fold.id, Sensitivity, Specificity)) %>%
+        filter(!is.na(Level)) %>%
+        melt(id.vars = c("Level", "Model"), variable.name = "Measure", value.name = "Value") %>% 
+        select(Level, Measure, Value, Model)
+    
+    ad.data.unc = ad.data.unc %>% 
+        mutate(Model = "Uncertaintified classifiers") %>%
+        rename(Level = Missing.attributes) %>%
+        select(-c(Fold.id, Sensitivity, Specificity)) %>%
+        filter(!is.na(Level)) %>%
+        melt(id.vars = c("Level", "Model"), variable.name = "Measure", value.name = "Value") %>% 
+        select(Level, Measure, Value, Model)
+        
+    ad.data = rbind(ad.data, ad.data.orig, ad.data.unc)
+    
     ad.data[which(is.na(ad.data[, "Value"])), "Value"] = 0
     
     vec.list = list()
@@ -606,11 +638,25 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
         wgh = c(1/3, rep(((2/3)/(nlevels(as.factor(acc$Level)) - 1)), 
                          nlevels(as.factor(acc$Level)) - 1))
         
-        df = data.frame(v = acc$Value * dec$Value * wgh, 
-                        g = as.vector(sapply(1:(nrow(acc)/nlevels(as.factor(acc$Level))), 
+        v.df = join(data.frame(cbind(lvl=acc$Level, acc=acc$Value, dec=dec$Value)),
+                    data.frame(cbind(lvl = sort(unique(acc$Level)), wgh)), 
+                    by="lvl")
+        
+        g.df = if (model == "Original classifiers")
+            {
+                readRDS(classifier.performance.original.cv.file.path) %>% filter(!is.na(Missing.attributes)) %>% select(Fold.id) %>% unlist %>% unname
+            } else if (model == "Uncertaintified classifiers")
+            {
+                readRDS(classifier.performance.interval.cv.file.path) %>% filter(!is.na(Missing.attributes)) %>% select(Fold.id) %>% unlist %>% unname
+            } else {
+                as.vector(sapply(1:((nlevels(as.factor(acc$Level)) * sum(acc$Level == 0))/nlevels(as.factor(acc$Level))), 
                                       function(i) 
                                       {rep(i, nlevels(as.factor(acc$Level)))})
                                       )
+            }
+        
+        df = data.frame(v = with(v.df, acc * dec * wgh),#acc$Value * dec$Value * wgh, 
+                        g = g.df
                         )
         
         vec.list[[model]] =
@@ -639,11 +685,14 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
     
     cat(paste0("![](", image.path, ")\n\n---\n\n"))
     
-    cat("Two-sided Student's t-Test concerning whether by-obscurance-level-weighted mean of AD-scores differ:\n\n")
+    cat("Wilcoxon’s Signed-Rank Test with Benjamini-Hochberg correction, concerning whether by-obscurance-level-weighted mean of AD-scores differ:\n\n")
     
     pvals = sapply(levels(ad.data$Model), function(a1) {
                 sapply(levels(ad.data$Model), function(a2) {
-                    t.test(vec.list[[a1]], vec.list[[a2]])$p.val
+                    if (a1 != a2)
+                        wilcox.test(vec.list[[a1]], vec.list[[a2]], paired = TRUE)$p.val
+                    else
+                        NA
                 })
             })
     
