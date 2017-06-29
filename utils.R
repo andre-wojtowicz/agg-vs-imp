@@ -513,6 +513,26 @@ nested.cross.validation = function(dataset, model.name,
 
     attr(model, "used.predictors") = used.predictors
 
+    random.performance = c()
+
+    if (!is.null(.random.seed))
+    {
+        assign(".Random.seed", .random.seed, envir = .GlobalEnv)
+    }
+
+    for (i in 1:no.folds)
+    {
+        refs  = dataset[as.numeric(unlist(idx.outer[i])), "Class"]
+        preds = factor(sample(levels(refs), length(refs), replace = TRUE),
+                       levels = levels(refs))
+
+        pm = caret::confusionMatrix(preds, refs)$overall[performance.selector]
+
+        random.performance = c(random.performance, pm)
+    }
+
+    saveRDS(random.performance, gsub(".rds", "-random.rds", model.file.path))
+
     return(model)
 }
 

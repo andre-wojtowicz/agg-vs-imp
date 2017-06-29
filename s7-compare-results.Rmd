@@ -75,7 +75,7 @@ internal method). In all learning procedures I use nested `r NCV.FOLDS`-times cr
 I also use:
 
  * classification methods: generalized linear models `glm`, neural networks `nnet`, support
- vector machines linear model `svmLinear`, classification trees `rpart`, k-nearest neighbors algorithm `knn` and, as a baseline model, one-rule method `OneR`,
+ vector machines linear model `svmLinear`, classification trees `rpart`, k-nearest neighbors algorithm `knn` and, as an additional reference point, simple one-rule method `OneR`,
  * imputation methods: `r paste(IMPUTATION.METHODS, collapse = ", ")`,
  * aggregation strategies: the strategies that always return prediction (see `aggregation-operators*.R`).
  
@@ -100,8 +100,7 @@ for (dataset.name in DATASETS.NAMES)
     cat("### Results on complete dataset\n\n")
 
     cat("The following tables present predictors used by the original classifiers and 
-corresponding performance measures. P-values concern one sample t-tests whether 
-mean accuracy across folds is significantly greater than 0.5.\n\n")
+corresponding performance measures. P-values concern paired Wilcoxon's Signed-Rank test  across folds checking whether accuracy is significantly greater than a random guess (~0.5).\n\n")
     
     dataset.file.path =
             replace.strings(DATASETS.NAME.PATTERN,
@@ -148,14 +147,19 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
         model = suppressWarnings(readRDS(model.file.path))
         
         folds.performance = attr(model, "folds.performance")
+        random.performance = readRDS(gsub(".rds", "-random.rds", model.file.path))
+        #bl = attr(readRDS(gsub(model.name, "OneR", model.file.path)), "folds.performance")$Accuracy
         
-        pval = t.test(folds.performance$Accuracy, mu = 0.5, alternative = "greater")$p.val
+        pval = wilcox.test(folds.performance$Accuracy, random.performance, 
+                           paired = TRUE,
+                           alternative = "greater")$p.val
+        
         pval = if (pval < 0.001) {
             " < 0.001 (\\*)"
         } else if (pval < 0.05) {
             paste0(" ", round(pval, 3), " (\\*)")
         } else {
-            pval
+            as.character(round(pval, 3))
         }
         
         data.frame(Classifier   = model.name,
@@ -685,7 +689,7 @@ mean accuracy across folds is significantly greater than 0.5.\n\n")
     
     cat(paste0("![](", image.path, ")\n\n---\n\n"))
     
-    cat("Wilcoxon’s Signed-Rank Test with Benjamini-Hochberg correction, concerning whether by-obscurance-level-weighted mean of AD-scores differ:\n\n")
+    cat("Paired Wilcoxon's Signed-Rank test with Benjamini-Hochberg correction, concerning whether by-obscurance-level-weighted mean of AD-scores differ:\n\n")
     
     pvals = sapply(levels(ad.data$Model), function(a1) {
                 sapply(levels(ad.data$Model), function(a2) {
